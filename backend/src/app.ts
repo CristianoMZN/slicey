@@ -2,6 +2,11 @@ import { Elysia } from 'elysia';
 import { openApiPlugin } from './plugins/openapi';
 import { prismaPlugin } from './plugins/prisma';
 import { authRoutes } from './modules/auth/auth.routes';
+import { authGuardPlugin } from './plugins/auth-guard';
+import { sanitizePlugin } from './plugins/sanitize';
+import { profileRoutes } from './modules/profile/profile.routes';
+import { postsRoutes } from './modules/posts/posts.routes';
+import { mediaRoutes } from './modules/media/media.routes';
 
 const app = new Elysia()
   .get('/', () => ({
@@ -9,8 +14,16 @@ const app = new Elysia()
     message: 'Backend online. A documentacao da API esta disponivel em /swagger.',
     docs: '/swagger'
   }))
+  .get('/swagger/swagger/json', ({ request }) =>
+    Response.redirect(new URL('/swagger/json', request.url), 307)
+  )
   .use(prismaPlugin)
+  .use(sanitizePlugin)
+  .use(authGuardPlugin)
   .use(authRoutes)
+  .use(profileRoutes)
+  .use(postsRoutes)
+  .use(mediaRoutes)
   .use(openApiPlugin);
 
 export default app;

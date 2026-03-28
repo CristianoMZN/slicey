@@ -3,14 +3,14 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-    // Seed initial data for the database
-    // Example: Create default users or places
-    const user = await prisma.user.create({
-        data: {
-            username: 'admin',
-            password: 'securepassword', // In a real application, ensure to hash passwords
+    const user = await prisma.user.upsert({
+        where: { email: 'admin@example.com' },
+        update: {},
+        create: {
             email: 'admin@example.com',
-        },
+            password: 'securepassword',
+            nickname: 'admin'
+        }
     });
 
     console.log({ user });
