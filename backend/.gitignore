@@ -1,0 +1,8 @@
+bun.lock
+.env
+node_modules
+dist
+coverage
+logs
+*.log
+postgres_data

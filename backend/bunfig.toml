@@ -1,0 +1,31 @@
+name = "backend"
+type = "node"
+
+[env]
+  NODE_ENV = "development"
+
+[build]
+  target = "node16"
+
+[install]
+  # Specify the dependencies for the project
+  dependencies = [
+    "elysia",
+    "jsonwebtoken",
+    "prisma",
+    "pg",
+    "postgis",
+    "prismabox",
+    "uws",
+    "dotenv"
+  ]
+
+[dev]
+  # Specify development dependencies
+  devDependencies = [
+    "typescript",
+    "ts-node",
+    "tsconfig-paths",
+    "jest",
+    "supertest"
+  ]
