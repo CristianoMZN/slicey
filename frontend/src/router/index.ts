@@ -5,7 +5,9 @@ import {
   createWebHashHistory,
   createWebHistory,
 } from 'vue-router';
+import { Notify } from 'quasar';
 import routes from './routes';
+import { useAuth } from 'src/composables/useAuth';
 
 /*
  * If not building with SSR mode, you can
@@ -31,6 +33,30 @@ export default defineRouter(function (/* { store, ssrContext } */) {
     // quasar.conf.js -> build -> vueRouterMode
     // quasar.conf.js -> build -> publicPath
     history: createHistory(process.env.VUE_ROUTER_BASE),
+  });
+
+  Router.beforeEach((to, _from, next) => {
+    const auth = useAuth();
+
+    if (!to.meta.requiresAuth || auth.isAuthenticated.value) {
+      next();
+      return;
+    }
+
+    auth.requestAuth(`acessar ${to.name?.toString() ?? 'esta area'}`);
+    Notify.create({
+      type: 'warning',
+      message: 'Crie sua conta para liberar esta area.',
+      timeout: 2500,
+      position: 'top',
+    });
+
+    next({
+      name: 'registro',
+      query: {
+        redirect: typeof to.fullPath === 'string' ? to.fullPath : '/feed',
+      },
+    });
   });
 
   return Router;

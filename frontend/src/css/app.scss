@@ -1,1 +1,245 @@
-// app global css in SCSS form
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Sora:wght@500;700;800&display=swap');
+
+:root {
+	--jobbie-bg: radial-gradient(circle at 15% 15%, #4c0f6a 0%, #1a0924 35%, #09050f 100%);
+	--jobbie-card: rgba(255, 255, 255, 0.06);
+	--jobbie-border: rgba(255, 255, 255, 0.12);
+	--jobbie-glow: 0 14px 42px rgba(212, 20, 90, 0.28);
+}
+
+body {
+	font-family: 'Manrope', sans-serif;
+	background: var(--jobbie-bg);
+	color: #f4effb;
+}
+
+.page-kicker {
+	color: rgba(255, 143, 170, 0.8);
+	letter-spacing: 0.28em;
+}
+
+.text-h5,
+.text-h6,
+.brand-title {
+	font-family: 'Sora', sans-serif;
+}
+
+.jobbie-layout {
+	background: linear-gradient(130deg, rgba(212, 20, 90, 0.12), rgba(142, 45, 226, 0.14));
+}
+
+.jobbie-header {
+	backdrop-filter: blur(10px);
+	background: rgba(15, 10, 27, 0.72);
+	border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+	color: #f4effb;
+}
+
+.brand-wrap {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+}
+
+.brand-dot {
+	width: 2rem;
+	height: 2rem;
+	border-radius: 9999px;
+	background: linear-gradient(160deg, #ff4d6d 0%, #8e2de2 100%);
+	box-shadow: var(--jobbie-glow);
+}
+
+.brand-title {
+	line-height: 1.1;
+	font-size: 1.05rem;
+	font-weight: 800;
+}
+
+.brand-subtitle {
+	line-height: 1.1;
+	font-size: 0.73rem;
+	opacity: 0.72;
+}
+
+.jobbie-footer {
+	background: rgba(9, 6, 16, 0.9);
+	border-top: 1px solid rgba(255, 255, 255, 0.08);
+	backdrop-filter: blur(8px);
+	color: rgba(255, 255, 255, 0.74);
+}
+
+.bottom-tabs {
+	.q-tab {
+		min-height: 60px;
+		letter-spacing: 0.01em;
+		border-radius: 12px;
+		margin: 0 4px;
+		color: rgba(255, 255, 255, 0.72);
+	}
+
+	.q-tab--active {
+		color: #d4145a;
+	}
+}
+
+.page-shell {
+	max-width: 980px;
+	margin: 0 auto;
+}
+
+.page-head {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 1rem;
+}
+
+.guest-banner {
+	border: 1px solid rgba(255, 193, 7, 0.35);
+	background: rgba(255, 193, 7, 0.08);
+}
+
+.hero-card,
+.feed-card,
+.section-card,
+.auth-card,
+.final-state {
+	background: var(--jobbie-card);
+	border-color: var(--jobbie-border);
+	box-shadow: 0 12px 28px rgba(0, 0, 0, 0.2);
+	color: #f4effb;
+}
+
+.post-image {
+	border-radius: 18px;
+	overflow: hidden;
+}
+
+.hero-illustration,
+.final-illustration,
+.illustration-box,
+.auth-illustration {
+	width: 100%;
+	max-width: 320px;
+}
+
+.hero-illustration,
+.final-illustration,
+.auth-illustration {
+	margin: 0 auto;
+}
+
+.auth-card {
+	width: min(92vw, 520px);
+	border-radius: 20px;
+	background: rgba(19, 10, 31, 0.96) !important;
+	border: 1px solid rgba(255, 255, 255, 0.12);
+	backdrop-filter: blur(12px);
+}
+
+.mobile-menu-card {
+	background-color: rgba(18, 10, 31, 0.97) !important;
+}
+
+.mobile-account-panel {
+	background-color: rgba(255, 255, 255, 0.14) !important;
+	border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.profile-card .q-field__control {
+	border-radius: 12px;
+}
+
+body.body--light {
+	--jobbie-bg: linear-gradient(180deg, #f7eefc 0%, #fdf7fb 100%);
+	--jobbie-card: rgba(255, 255, 255, 0.82);
+	--jobbie-border: rgba(142, 45, 226, 0.18);
+	color: #24152f;
+
+	.page-kicker {
+		color: rgba(212, 20, 90, 0.62);
+	}
+
+	.jobbie-header {
+		background: rgba(255, 255, 255, 0.86);
+		border-bottom-color: rgba(142, 45, 226, 0.2);
+		color: #24152f;
+	}
+
+	.jobbie-footer {
+		background: rgba(255, 255, 255, 0.9);
+		border-top-color: rgba(142, 45, 226, 0.18);
+		color: rgba(36, 21, 47, 0.7);
+	}
+
+	.brand-title,
+	.brand-subtitle,
+	.jobbie-header .q-btn,
+	.jobbie-header .q-toolbar,
+	.hero-card,
+	.feed-card,
+	.section-card,
+	.auth-card,
+	.final-state,
+	.guest-banner {
+		color: #24152f;
+	}
+
+	.bottom-tabs .q-tab {
+		color: rgba(36, 21, 47, 0.7);
+	}
+
+	.auth-card {
+		background: rgba(255, 255, 255, 0.98) !important;
+		border-color: rgba(142, 45, 226, 0.18);
+	}
+
+	.mobile-menu-card {
+		background-color: rgba(255, 255, 255, 0.98) !important;
+	}
+
+	.mobile-account-panel {
+		background-color: rgba(255, 255, 255, 0.88) !important;
+		border-color: rgba(142, 45, 226, 0.16);
+	}
+
+	.text-grey-6,
+	.text-grey-7 {
+		color: rgba(42, 25, 52, 0.75) !important;
+	}
+}
+
+@media (max-width: 680px) {
+	.brand-subtitle {
+		display: none;
+	}
+
+	.bottom-tabs .q-tab {
+		min-height: 52px;
+		min-width: 0;
+		margin: 0 1px;
+		padding: 0 2px;
+	}
+
+	.bottom-tabs .q-tab__content {
+		min-width: 0;
+	}
+
+	.bottom-tabs .q-tab__label {
+		display: none;
+	}
+
+	.bottom-tabs .q-icon {
+		font-size: 22px;
+	}
+
+	.bottom-tabs .frames-tab {
+		margin: 2px 1px;
+		border-radius: 12px;
+	}
+
+	.page-head {
+		flex-direction: column;
+		align-items: flex-start;
+	}
+}
