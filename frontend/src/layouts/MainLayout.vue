@@ -117,7 +117,13 @@
       <q-tabs align="justify" class="bottom-tabs" active-color="primary" indicator-color="transparent">
         <q-route-tab to="/feed" icon="dynamic_feed" label="Posts" class="nav-tab" />
         <q-route-tab to="/anuncios" icon="campaign" label="Anuncios" class="nav-tab" />
-        <q-route-tab to="/frames" icon="theaters" label="Frames" class="nav-tab frames-tab" />
+        <q-tab
+          :icon="isFramesRoute ? 'add_circle' : 'theaters'"
+          :label="isFramesRoute ? 'Novo' : 'Frames'"
+          class="nav-tab frames-tab"
+          :class="{ 'frames-tab-active': isFramesRoute }"
+          @click="handleFramesBottomAction"
+        />
         <q-route-tab to="/mensagens" icon="forum" label="Mensagens" class="nav-tab" />
         <q-route-tab to="/loja" icon="storefront" label="Loja" class="nav-tab" />
       </q-tabs>
@@ -288,7 +294,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useQuasar } from 'quasar';
-import { useRouter, type RouteLocationRaw } from 'vue-router';
+import { useRoute, useRouter, type RouteLocationRaw } from 'vue-router';
 import { useAuth } from 'src/composables/useAuth';
 import UndrawLogin from 'vue-undraw/UndrawLogin.vue';
 
@@ -302,6 +308,7 @@ type MenuItem = {
 
 const $q = useQuasar();
 const router = useRouter();
+const route = useRoute();
 const auth = useAuth();
 const mobileMenuOpen = ref(false);
 
@@ -316,6 +323,7 @@ const userDisplayName = computed(() => {
     .join(' ');
 });
 const userInitial = computed(() => userDisplayName.value.charAt(0).toUpperCase() || 'J');
+const isFramesRoute = computed(() => route.name === 'frames');
 
 const isDarkMode = computed({
   get: () => $q.dark.isActive,
@@ -399,6 +407,15 @@ function handleMenuItem(item: MenuItem) {
 function handleMobileMenuItem(item: MenuItem) {
   mobileMenuOpen.value = false;
   handleMenuItem(item);
+}
+
+function handleFramesBottomAction() {
+  if (isFramesRoute.value) {
+    window.dispatchEvent(new CustomEvent('jobbie:frames-create-video'));
+    return;
+  }
+
+  void router.push({ name: 'frames' });
 }
 
 const desktopMenuItems = computed<MenuItem[]>(() => [
@@ -571,6 +588,11 @@ const mobileMenuItems = computed<MenuItem[]>(() => [
   box-shadow: 0 4px 18px rgba(142, 45, 226, 0.38);
 }
 
+.frames-tab.frames-tab-active {
+  background: linear-gradient(135deg, #d4145a 0%, #8e2de2 100%);
+  box-shadow: 0 4px 18px rgba(142, 45, 226, 0.38);
+}
+
 .frames-tab :deep(.q-tab__label),
 .frames-tab :deep(.q-icon) {
   color: rgba(255, 255, 255, 0.6);
@@ -578,6 +600,11 @@ const mobileMenuItems = computed<MenuItem[]>(() => [
 
 .frames-tab.q-tab--active :deep(.q-tab__label),
 .frames-tab.q-tab--active :deep(.q-icon) {
+  color: white;
+}
+
+.frames-tab.frames-tab-active :deep(.q-tab__label),
+.frames-tab.frames-tab-active :deep(.q-icon) {
   color: white;
 }
 
