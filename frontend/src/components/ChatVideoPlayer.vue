@@ -34,27 +34,40 @@
         <span class="text-caption text-white chat-video__time">
           {{ fmt(currentTime) }} / {{ fmt(duration) }}
         </span>
-        <q-btn
-          flat round dense size="xs"
-          text-color="white"
-          :icon="isMuted ? 'volume_off' : 'volume_up'"
-          @click="toggleMute"
-        />
+        <div class="row items-center q-gutter-xs">
+          <q-btn
+            flat round dense size="xs"
+            text-color="white"
+            :icon="isMuted ? 'volume_off' : 'volume_up'"
+            @click="toggleMute"
+          />
+          <q-btn
+            flat round dense size="xs"
+            text-color="white"
+            :icon="isFullscreen ? 'fullscreen_exit' : 'fullscreen'"
+            @click="toggleFullscreen"
+          />
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 
 defineProps<{ src: string }>();
 
 const videoEl = ref<HTMLVideoElement | null>(null);
 const isPlaying = ref(false);
 const isMuted = ref(false);
+const isFullscreen = ref(false);
 const currentTime = ref(0);
 const duration = ref(0);
+
+type FullscreenCapableVideo = HTMLVideoElement & {
+  webkitEnterFullscreen?: () => void;
+};
 
 const progressPercent = computed(() =>
   duration.value ? (currentTime.value / duration.value) * 100 : 0,
@@ -74,6 +87,27 @@ function toggleMute() {
   if (videoEl.value) videoEl.value.muted = isMuted.value;
 }
 
+async function toggleFullscreen() {
+  const video = videoEl.value as FullscreenCapableVideo | null;
+  if (!video) {
+    return;
+  }
+
+  if (document.fullscreenElement) {
+    await document.exitFullscreen();
+    return;
+  }
+
+  if (video.requestFullscreen) {
+    await video.requestFullscreen();
+    return;
+  }
+
+  if (typeof video.webkitEnterFullscreen === 'function') {
+    video.webkitEnterFullscreen();
+  }
+}
+
 function seek(val: number | null) {
   if (!videoEl.value || val === null || !duration.value) return;
   videoEl.value.currentTime = (val / 100) * duration.value;
@@ -84,12 +118,24 @@ function onTimeUpdate() { currentTime.value = videoEl.value?.currentTime ?? 0; }
 function onLoaded()     { duration.value = videoEl.value?.duration ?? 0; }
 function onEnded()      { isPlaying.value = false; currentTime.value = 0; }
 
+function syncFullscreenState() {
+  isFullscreen.value = Boolean(document.fullscreenElement);
+}
+
 function fmt(s: number) {
   if (!Number.isFinite(s) || s <= 0) return '0:00';
   const m = Math.floor(s / 60);
   const sec = Math.floor(s % 60).toString().padStart(2, '0');
   return `${m}:${sec}`;
 }
+
+onMounted(() => {
+  document.addEventListener('fullscreenchange', syncFullscreenState);
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener('fullscreenchange', syncFullscreenState);
+});
 </script>
 
 <style scoped lang="scss">

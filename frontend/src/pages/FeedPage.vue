@@ -1,44 +1,5 @@
 <template>
   <q-page class="page-shell q-px-md q-pt-md q-pb-xl">
-    <div class="page-head q-mb-md">
-      <div>
-        <div class="text-overline page-kicker">Timeline publica</div>
-        <h1 class="text-h5 q-my-none text-weight-bold">Feed infinito</h1>
-      </div>
-      <q-chip
-        square
-        outline
-        :color="isAuthenticated ? 'positive' : 'warning'"
-        :text-color="isAuthenticated ? 'positive' : 'warning'"
-      >
-        {{ isAuthenticated ? 'Logado' : 'Modo visitante' }}
-      </q-chip>
-    </div>
-
-    <q-banner v-if="!isAuthenticated" rounded class="guest-banner q-mb-md">
-      <template #avatar>
-        <q-icon name="lock" color="warning" />
-      </template>
-      O feed e livre. Para comentar, curtir e navegar em outras abas, registre-se em 1 clique.
-      <template #action>
-        <q-btn flat color="primary" label="Criar conta" @click="requestAuth('interagir com o feed')" />
-      </template>
-    </q-banner>
-
-    <q-card flat bordered class="hero-card q-mb-md">
-      <q-card-section class="row items-center no-wrap q-col-gutter-md">
-        <div class="col-auto hero-illustration">
-          <UndrawSocialMedia primary-color="#d4145a" />
-        </div>
-        <div class="col">
-          <div class="text-subtitle1 text-weight-bold">Novidades fresquinhas o dia todo</div>
-          <div class="text-body2 text-grey-6">
-            Curta publicacoes, descubra perfis e acompanhe tendencias da comunidade em tempo real.
-          </div>
-        </div>
-      </q-card-section>
-    </q-card>
-
     <q-card flat bordered class="section-card q-mb-md create-post-card">
       <q-card-section class="row items-center q-col-gutter-md">
         <div class="col-auto">
@@ -68,96 +29,199 @@
     </q-card>
 
     <q-infinite-scroll @load="onLoad" :offset="200" :disable="isBootstrapping || allLoaded">
-      <q-card v-for="post in posts" :key="post.id" bordered flat class="feed-card q-mb-md">
-        <q-card-section>
-          <div class="row items-center q-col-gutter-sm">
-            <div class="col-auto">
-              <router-link
-                v-if="post.authorId"
-                :to="{ name: 'anuncio-detalhe', params: { id: post.authorId } }"
-                class="author-link"
-              >
-                <q-avatar color="deep-purple-6" text-color="white">
-                  {{ post.author.charAt(0) }}
-                </q-avatar>
-              </router-link>
-              <q-avatar v-else color="deep-purple-6" text-color="white">
-                {{ post.author.charAt(0) }}
-              </q-avatar>
-            </div>
-            <div class="col">
-              <router-link
-                v-if="post.authorId"
-                :to="{ name: 'anuncio-detalhe', params: { id: post.authorId } }"
-                class="author-link"
-              >
-                <div class="text-subtitle2 text-weight-bold">{{ post.author }}</div>
-              </router-link>
-              <div v-else class="text-subtitle2 text-weight-bold">{{ post.author }}</div>
-              <div class="text-caption text-grey-6">{{ post.location }}</div>
-            </div>
-            <div class="col-auto text-caption text-grey-6">{{ post.timeAgo }}</div>
+      <div v-if="isDesktopFeed" class="feed-columns">
+        <div v-for="(columnPosts, columnIndex) in desktopColumns" :key="columnIndex" class="feed-column">
+          <div v-for="post in columnPosts" :key="post.id" class="feed-masonry-item">
+            <q-card bordered flat class="feed-card">
+              <q-card-section>
+                <div class="row items-center q-col-gutter-sm">
+                  <div class="col-auto">
+                    <router-link
+                      v-if="post.authorId"
+                      :to="{ name: 'anuncio-detalhe', params: { id: post.authorId } }"
+                      class="author-link"
+                    >
+                      <q-avatar color="deep-purple-6" text-color="white">
+                        {{ post.author.charAt(0) }}
+                      </q-avatar>
+                    </router-link>
+                    <q-avatar v-else color="deep-purple-6" text-color="white">
+                      {{ post.author.charAt(0) }}
+                    </q-avatar>
+                  </div>
+                  <div class="col">
+                    <router-link
+                      v-if="post.authorId"
+                      :to="{ name: 'anuncio-detalhe', params: { id: post.authorId } }"
+                      class="author-link"
+                    >
+                      <div class="text-subtitle2 text-weight-bold">{{ post.author }}</div>
+                    </router-link>
+                    <div v-else class="text-subtitle2 text-weight-bold">{{ post.author }}</div>
+                    <div class="text-caption text-grey-6">{{ post.location }}</div>
+                  </div>
+                  <div class="col-auto text-caption text-grey-6">{{ post.timeAgo }}</div>
+                </div>
+              </q-card-section>
+
+              <q-card-section class="q-pt-none">
+                <div class="text-body1 q-mb-xs">{{ post.title }}</div>
+                <div class="text-body2 text-grey-7">{{ post.description }}</div>
+              </q-card-section>
+
+              <q-card-section v-if="post.media.type !== 'text'" class="q-pt-none">
+                <q-img
+                  v-if="post.media.type === 'image'"
+                  :src="post.media.src"
+                  :alt="post.media.alt"
+                  :ratio="4 / 5"
+                  class="post-image"
+                  @click="openImagePreview(post.media.src, post.media.alt)"
+                />
+                <audio-player-card
+                  v-else-if="post.media.type === 'audio'"
+                  :src="post.media.src"
+                  :title="`Audio de ${post.author}`"
+                  :subtitle="post.media.subtitle"
+                  :cover-image="post.media.coverImage"
+                />
+                <simple-video-player
+                  v-else
+                  :src="post.media.src"
+                  :poster="post.media.poster"
+                />
+              </q-card-section>
+
+              <q-separator />
+
+              <q-card-actions align="between">
+                <q-btn
+                  flat
+                  rounded
+                  :color="post.liked ? 'primary' : 'grey-7'"
+                  icon="favorite"
+                  :label="`${post.likes} curtidas`"
+                  @click="toggleLike(post)"
+                />
+                <q-btn
+                  flat
+                  rounded
+                  icon="comment"
+                  :label="`${post.comments.length} comentarios`"
+                  @click="openComments(post)"
+                />
+                <q-btn flat rounded icon="share" label="Compartilhar" @click="share(post)" />
+              </q-card-actions>
+
+              <q-separator />
+
+              <q-card-section>
+                <post-comment-composer
+                  :can-comment="isAuthenticated"
+                  @submit="submitInlineComment(post, $event)"
+                  @request-auth="requestCommentAuth"
+                />
+              </q-card-section>
+            </q-card>
           </div>
-        </q-card-section>
+        </div>
+      </div>
 
-        <q-card-section class="q-pt-none">
-          <div class="text-body1 q-mb-xs">{{ post.title }}</div>
-          <div class="text-body2 text-grey-7">{{ post.description }}</div>
-        </q-card-section>
+      <div v-else class="feed-masonry">
+        <div v-for="post in posts" :key="post.id" class="feed-masonry-item">
+          <q-card bordered flat class="feed-card">
+            <q-card-section>
+              <div class="row items-center q-col-gutter-sm">
+                <div class="col-auto">
+                  <router-link
+                    v-if="post.authorId"
+                    :to="{ name: 'anuncio-detalhe', params: { id: post.authorId } }"
+                    class="author-link"
+                  >
+                    <q-avatar color="deep-purple-6" text-color="white">
+                      {{ post.author.charAt(0) }}
+                    </q-avatar>
+                  </router-link>
+                  <q-avatar v-else color="deep-purple-6" text-color="white">
+                    {{ post.author.charAt(0) }}
+                  </q-avatar>
+                </div>
+                <div class="col">
+                  <router-link
+                    v-if="post.authorId"
+                    :to="{ name: 'anuncio-detalhe', params: { id: post.authorId } }"
+                    class="author-link"
+                  >
+                    <div class="text-subtitle2 text-weight-bold">{{ post.author }}</div>
+                  </router-link>
+                  <div v-else class="text-subtitle2 text-weight-bold">{{ post.author }}</div>
+                  <div class="text-caption text-grey-6">{{ post.location }}</div>
+                </div>
+                <div class="col-auto text-caption text-grey-6">{{ post.timeAgo }}</div>
+              </div>
+            </q-card-section>
 
-        <q-card-section v-if="post.media.type !== 'text'" class="q-pt-none">
-          <q-img
-            v-if="post.media.type === 'image'"
-            :src="post.media.src"
-            :alt="post.media.alt"
-            class="post-image"
-            height="280px"
-          />
-          <audio-player-card
-            v-else-if="post.media.type === 'audio'"
-            :src="post.media.src"
-            :title="`Audio de ${post.author}`"
-            :subtitle="post.media.subtitle"
-            :cover-image="post.media.coverImage"
-          />
-          <simple-video-player
-            v-else
-            :src="post.media.src"
-            :poster="post.media.poster"
-          />
-        </q-card-section>
+            <q-card-section class="q-pt-none">
+              <div class="text-body1 q-mb-xs">{{ post.title }}</div>
+              <div class="text-body2 text-grey-7">{{ post.description }}</div>
+            </q-card-section>
 
-        <q-separator />
+            <q-card-section v-if="post.media.type !== 'text'" class="q-pt-none">
+              <q-img
+                v-if="post.media.type === 'image'"
+                :src="post.media.src"
+                :alt="post.media.alt"
+                :ratio="4 / 5"
+                class="post-image"
+                @click="openImagePreview(post.media.src, post.media.alt)"
+              />
+              <audio-player-card
+                v-else-if="post.media.type === 'audio'"
+                :src="post.media.src"
+                :title="`Audio de ${post.author}`"
+                :subtitle="post.media.subtitle"
+                :cover-image="post.media.coverImage"
+              />
+              <simple-video-player
+                v-else
+                :src="post.media.src"
+                :poster="post.media.poster"
+              />
+            </q-card-section>
 
-        <q-card-actions align="between">
-          <q-btn
-            flat
-            rounded
-            :color="post.liked ? 'primary' : 'grey-7'"
-            icon="favorite"
-            :label="`${post.likes} curtidas`"
-            @click="toggleLike(post)"
-          />
-          <q-btn
-            flat
-            rounded
-            icon="comment"
-            :label="`${post.comments.length} comentarios`"
-            @click="openComments(post)"
-          />
-          <q-btn flat rounded icon="share" label="Compartilhar" @click="share(post)" />
-        </q-card-actions>
+            <q-separator />
 
-        <q-separator />
+            <q-card-actions align="between">
+              <q-btn
+                flat
+                rounded
+                :color="post.liked ? 'primary' : 'grey-7'"
+                icon="favorite"
+                :label="`${post.likes} curtidas`"
+                @click="toggleLike(post)"
+              />
+              <q-btn
+                flat
+                rounded
+                icon="comment"
+                :label="`${post.comments.length} comentarios`"
+                @click="openComments(post)"
+              />
+              <q-btn flat rounded icon="share" label="Compartilhar" @click="share(post)" />
+            </q-card-actions>
 
-        <q-card-section>
-          <post-comment-composer
-            :can-comment="isAuthenticated"
-            @submit="submitInlineComment(post, $event)"
-            @request-auth="requestCommentAuth"
-          />
-        </q-card-section>
-      </q-card>
+            <q-separator />
+
+            <q-card-section>
+              <post-comment-composer
+                :can-comment="isAuthenticated"
+                @submit="submitInlineComment(post, $event)"
+                @request-auth="requestCommentAuth"
+              />
+            </q-card-section>
+          </q-card>
+        </div>
+      </div>
 
       <template #loading>
         <div class="row justify-center q-my-md">
@@ -183,6 +247,12 @@
       @request-auth="requestCommentAuth"
     />
 
+    <image-viewer-dialog
+      v-model="imageViewerOpen"
+      :src="selectedImageSrc"
+      :alt="selectedImageAlt"
+    />
+
     <post-composer-dialog
       v-model="postComposerOpen"
       :initial-mode="postComposerMode"
@@ -196,6 +266,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { useQuasar } from 'quasar';
 import AudioPlayerCard from 'src/components/AudioPlayerCard.vue';
+import ImageViewerDialog from 'src/components/ImageViewerDialog.vue';
 import PostComposerDialog from 'src/components/PostComposerDialog.vue';
 import PostCommentComposer from 'src/components/PostCommentComposer.vue';
 import PostCommentsDialog from 'src/components/PostCommentsDialog.vue';
@@ -205,11 +276,12 @@ import { baseFeedPosts, type FeedPost } from 'src/data/mock-content';
 import type { SubmitCommentPayload } from 'src/types/comments';
 import type { PostComposerMode, PostComposerPayload } from 'src/types/post-composer';
 import UndrawPostOnline from 'vue-undraw/UndrawPostOnline.vue';
-import UndrawSocialMedia from 'vue-undraw/UndrawSocialMedia.vue';
 
 const $q = useQuasar();
 const auth = useAuth();
 const isAuthenticated = computed(() => auth.isAuthenticated.value);
+// Use platform instead of reactive viewport width to avoid remounting feed trees during fullscreen.
+const isDesktopFeed = computed(() => $q.platform.is.desktop);
 
 const isBootstrapping = ref(true);
 const posts = ref<FeedPost[]>([]);
@@ -220,14 +292,23 @@ const commentsDialogOpen = ref(false);
 const selectedPostId = ref<number | null>(null);
 const postComposerOpen = ref(false);
 const postComposerMode = ref<PostComposerMode>('text');
+const imageViewerOpen = ref(false);
+const selectedImageSrc = ref('');
+const selectedImageAlt = ref('Imagem do post');
 
 const selectedPost = computed(() =>
   posts.value.find((post) => post.id === selectedPostId.value),
 );
 
-function requestAuth(action: string) {
-  auth.requestAuth(action);
-}
+const desktopColumns = computed(() => {
+  const columns: FeedPost[][] = [[], []];
+
+  posts.value.forEach((post, index) => {
+    columns[index % 2]?.push(post);
+  });
+
+  return columns;
+});
 
 function createBatch(page: number): FeedPost[] {
   return baseFeedPosts.map((template, index) => ({
@@ -329,6 +410,12 @@ function openComments(post: FeedPost) {
   commentsDialogOpen.value = true;
 }
 
+function openImagePreview(src: string, alt?: string) {
+  selectedImageSrc.value = src;
+  selectedImageAlt.value = alt || 'Imagem do post';
+  imageViewerOpen.value = true;
+}
+
 function share(post: FeedPost) {
   $q.notify({
     type: 'info',
@@ -420,6 +507,20 @@ onMounted(async () => {
   backdrop-filter: blur(8px);
 }
 
+.feed-card {
+  width: 100%;
+}
+
+.feed-masonry-item {
+  margin-bottom: 16px;
+}
+
+.post-image {
+  border-radius: 18px;
+  overflow: hidden;
+  cursor: zoom-in;
+}
+
 .author-link {
   text-decoration: none;
   color: inherit;
@@ -431,6 +532,25 @@ onMounted(async () => {
     .q-avatar {
       opacity: 0.85;
     }
+  }
+}
+
+@media (min-width: 1024px) {
+  .feed-columns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    align-items: start;
+  }
+
+  .feed-column {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .feed-masonry-item {
+    margin-bottom: 0;
   }
 }
 </style>

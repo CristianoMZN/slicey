@@ -14,12 +14,6 @@
       />
     </div>
 
-    <div class="row q-col-gutter-md">
-      <div v-for="profile in filteredProfiles" :key="profile.id" class="col-12 col-md-6">
-        <ad-profile-card :profile="profile" />
-      </div>
-    </div>
-
     <q-slide-transition>
       <q-card v-show="filtersOpen" flat bordered class="section-card q-mt-md filter-card">
         <q-card-section>
@@ -103,6 +97,36 @@
       </q-card>
     </q-slide-transition>
 
+    <q-infinite-scroll
+      class="q-mt-md"
+      :offset="180"
+      :disable="allLoaded || filteredProfiles.length === 0"
+      @load="onLoad"
+    >
+      <div class="row q-col-gutter-md">
+        <div v-for="profile in visibleProfiles" :key="profile.id" class="col-12 col-sm-6 col-md-4">
+          <ad-profile-card :profile="profile" />
+        </div>
+      </div>
+
+      <template #loading>
+        <div class="row justify-center q-my-md">
+          <q-spinner-dots color="primary" size="32px" />
+        </div>
+      </template>
+    </q-infinite-scroll>
+
+    <q-card
+      v-if="filteredProfiles.length > 0 && allLoaded"
+      flat
+      bordered
+      class="section-card q-pa-lg text-center q-mt-md"
+    >
+      <q-icon size="34px" name="verified" color="positive" />
+      <div class="text-subtitle1 text-weight-bold q-mt-sm">Esses sao todos os nossos perfis anunciados</div>
+      <div class="text-body2 text-grey-6 q-mt-xs">Novos perfis entram continuamente ao longo do dia.</div>
+    </q-card>
+
     <q-card v-if="filteredProfiles.length === 0" flat bordered class="section-card q-pa-lg text-center q-mt-md">
       <q-icon size="40px" name="filter_alt_off" color="warning" />
       <div class="text-subtitle1 text-weight-bold q-mt-sm">Nenhum perfil encontrado</div>
@@ -115,7 +139,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import AdProfileCard from 'src/components/AdProfileCard.vue';
 import { adProfiles } from 'src/data/mock-content';
 import type { AdGender, AdProfileBadge, AdSexuality } from 'src/data/mock-content';
@@ -127,6 +151,8 @@ const search = ref('');
 const selectedCity = ref<string | null>(null);
 const selectedBadge = ref<string | null>(null);
 const filtersOpen = ref(false);
+const pageSize = 6;
+const visibleCount = ref(pageSize);
 
 function prefsGender(): AdGender | null {
   if (preferences.interestedIn === 'Mulheres') return 'Feminino';
@@ -185,6 +211,20 @@ const filteredProfiles = computed(() => {
 
     return matchesSearch && matchesCity && matchesBadge && matchesGender && matchesSexuality;
   });
+});
+
+const visibleProfiles = computed(() => filteredProfiles.value.slice(0, visibleCount.value));
+const allLoaded = computed(() => visibleProfiles.value.length >= filteredProfiles.value.length);
+
+function onLoad(_index: number, done: () => void) {
+  window.setTimeout(() => {
+    visibleCount.value += pageSize;
+    done();
+  }, 280);
+}
+
+watch(filteredProfiles, () => {
+  visibleCount.value = pageSize;
 });
 
 function clearFilters() {

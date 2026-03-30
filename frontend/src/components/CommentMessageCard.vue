@@ -10,13 +10,13 @@
       <div class="row items-center q-gutter-sm">
         <q-item-label class="text-weight-bold">{{ comment.author }}</q-item-label>
         <q-badge
-          v-if="comment.superComment"
+          v-if="derivedSuperComment"
           class="super-badge"
-          :class="`super-badge--${comment.superComment.temperature}`"
+          :class="`super-badge--${derivedSuperComment.temperature}`"
           rounded
         >
           <q-icon name="bolt" size="12px" class="q-mr-xs" />
-          SUPER {{ comment.superComment.amount.toLocaleString('pt-BR') }} J-GOLD
+          {{ temperatureLabel }} · {{ derivedSuperComment.amount.toLocaleString('pt-BR') }} J-GOLD
         </q-badge>
       </div>
 
@@ -37,7 +37,7 @@
         </div>
 
         <div class="comment-content">
-          <div v-if="comment.superComment" class="text-caption text-weight-medium q-mb-xs">
+          <div v-if="derivedSuperComment" class="text-caption text-weight-medium q-mb-xs">
             Temperatura: {{ temperatureLabel }}
           </div>
           {{ comment.body }}
@@ -50,12 +50,26 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { commentTemperatureLabelMap, type FeedComment } from 'src/data/mock-content';
+import { resolveSuperCommentTemperature } from 'src/types/comments';
 
 const props = defineProps<{
   comment: FeedComment;
 }>();
 
-const temperature = computed(() => props.comment.superComment?.temperature);
+const derivedSuperComment = computed(() => {
+  if (!props.comment.superComment) {
+    return null;
+  }
+
+  const amount = Math.max(1, Math.round(props.comment.superComment.amount));
+  return {
+    ...props.comment.superComment,
+    amount,
+    temperature: resolveSuperCommentTemperature(amount),
+  };
+});
+
+const temperature = computed(() => derivedSuperComment.value?.temperature);
 const isBlaze = computed(() => temperature.value === 'blaze');
 
 const temperatureLabel = computed(() => {

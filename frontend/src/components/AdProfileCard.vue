@@ -5,30 +5,25 @@
       animated
       swipeable
       infinite
-      navigation
-      height="360px"
-      class="ad-carousel"
+      height="100%"
+      class="ad-carousel ad-carousel--bg"
     >
       <q-carousel-slide
         v-for="(image, index) in profile.images"
         :key="image"
         :name="index"
-        class="q-pa-none"
+        class="q-pa-none carousel-slide"
       >
-        <q-img :src="image" class="fit" height="360px" />
+        <q-img :src="image" class="fit carousel-image" height="100%" />
       </q-carousel-slide>
-
-      <template #control>
-        <q-carousel-control position="left" :offset="[12, 0]">
-          <q-btn round flat color="white" icon="chevron_left" @click="goPrevious" />
-        </q-carousel-control>
-        <q-carousel-control position="right" :offset="[12, 0]">
-          <q-btn round flat color="white" icon="chevron_right" @click="goNext" />
-        </q-carousel-control>
-      </template>
     </q-carousel>
 
     <div class="card-overlay" />
+
+    <div class="desktop-carousel-controls">
+      <q-btn round flat color="white" icon="chevron_left" @click="goPrevious" />
+      <q-btn round flat color="white" icon="chevron_right" @click="goNext" />
+    </div>
 
     <q-card-section class="card-content">
       <div class="row items-start justify-between q-col-gutter-sm no-wrap">
@@ -72,7 +67,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import type { AdProfile, AdProfileBadge } from 'src/data/mock-content';
 
@@ -82,6 +77,13 @@ const props = defineProps<{
 
 const router = useRouter();
 const slide = ref(0);
+let autoSwipeTimer: ReturnType<typeof setInterval> | null = null;
+const badgePriority: Record<AdProfileBadge, number> = {
+  'top-rated-10': 1,
+  'verified-account': 2,
+  'leaving-soon': 3,
+  'new-profile': 4,
+};
 
 const badgeMap: Record<AdProfileBadge, { label: string; icon: string; color: string }> = {
   'verified-account': {
@@ -112,19 +114,68 @@ const cityAndState = computed(() =>
 
 const ageLabel = computed(() => (props.profile.age ? `${props.profile.age} anos` : 'Idade nao informada'));
 const localLabel = computed(() => (props.profile.hasLocal ? 'Com local' : 'Sem local'));
-const profileBadges = computed(() => (props.profile.badges ?? []).map((badge) => ({ key: badge, ...badgeMap[badge] })));
+const profileBadges = computed(() =>
+  [...(props.profile.badges ?? [])]
+    .sort((a, b) => badgePriority[a] - badgePriority[b])
+    .map((badge) => {
+      const base = badgeMap[badge];
+      if (badge !== 'leaving-soon') {
+        return { key: badge, ...base };
+      }
+
+      const days = props.profile.leavingInDays;
+      const countdown = typeof days === 'number' && days > 0 ? ` (em ${days}d)` : '';
+      return {
+        key: badge,
+        ...base,
+        label: `${base.label}${countdown}`,
+      };
+    }),
+);
 
 function goPrevious() {
   slide.value = slide.value === 0 ? props.profile.images.length - 1 : slide.value - 1;
+  restartAutoSwipe();
 }
 
 function goNext() {
   slide.value = (slide.value + 1) % props.profile.images.length;
+  restartAutoSwipe();
+}
+
+function autoSwipeNext() {
+  slide.value = (slide.value + 1) % props.profile.images.length;
+}
+
+function startAutoSwipe() {
+  if (autoSwipeTimer) return;
+  autoSwipeTimer = setInterval(() => {
+    autoSwipeNext();
+  }, 20000);
+}
+
+function stopAutoSwipe() {
+  if (!autoSwipeTimer) return;
+  clearInterval(autoSwipeTimer);
+  autoSwipeTimer = null;
+}
+
+function restartAutoSwipe() {
+  stopAutoSwipe();
+  startAutoSwipe();
 }
 
 function openDetails() {
   void router.push({ name: 'anuncio-detalhe', params: { id: props.profile.id.toString() } });
 }
+
+onMounted(() => {
+  startAutoSwipe();
+});
+
+onBeforeUnmount(() => {
+  stopAutoSwipe();
+});
 </script>
 
 <style scoped lang="scss">
@@ -139,6 +190,17 @@ function openDetails() {
   background: rgba(255, 255, 255, 0.04);
 }
 
+.ad-carousel--bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.carousel-slide,
+.carousel-image {
+  height: 100%;
+}
+
 .card-overlay {
   position: absolute;
   inset: 0;
@@ -146,6 +208,19 @@ function openDetails() {
   background:
     linear-gradient(to top, rgba(6, 7, 12, 0.92) 0%, rgba(6, 7, 12, 0.56) 34%, rgba(6, 7, 12, 0.12) 66%),
     linear-gradient(to right, rgba(0, 0, 0, 0.28), transparent 45%);
+}
+
+.desktop-carousel-controls {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(10, 12, 18, 0.35);
+  border-radius: 999px;
+  backdrop-filter: blur(3px);
 }
 
 .card-content {
@@ -158,5 +233,16 @@ function openDetails() {
 
 .badge-chip {
   backdrop-filter: blur(2px);
+}
+
+:deep(.q-carousel__slides-container) {
+  transition-timing-function: cubic-bezier(0.12, 0.88, 0.28, 1) !important;
+  transition-duration: 920ms !important;
+}
+
+@media (max-width: 768px) {
+  .desktop-carousel-controls {
+    display: none;
+  }
 }
 </style>

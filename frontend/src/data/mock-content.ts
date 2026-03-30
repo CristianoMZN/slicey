@@ -9,10 +9,10 @@ export interface FeedComment {
 }
 
 export const commentTemperatureLabelMap: Record<CommentTemperature, string> = {
-  cold: 'Frio',
-  warm: 'Morno',
-  hot: 'Quente',
-  blaze: 'Em chamas',
+  cold: 'Frosty',
+  warm: 'Simmering',
+  hot: 'Steamy',
+  blaze: 'Blazing',
 };
 
 export interface FeedPost {
@@ -63,6 +63,7 @@ export interface AdProfile {
   state?: string;
   age?: number;
   hasLocal?: boolean;
+  leavingInDays?: number;
   badge: string;
   badges?: AdProfileBadge[];
   bio: string;
@@ -137,6 +138,21 @@ const portraitEleven =
 const portraitTwelve =
   'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=900&q=80';
 
+export const portraitGalleryPool = [
+  portraitOne,
+  portraitTwo,
+  portraitThree,
+  portraitFour,
+  portraitFive,
+  portraitSix,
+  portraitSeven,
+  portraitEight,
+  portraitNine,
+  portraitTen,
+  portraitEleven,
+  portraitTwelve,
+];
+
 export const baseFeedPosts: FeedPost[] = [
   {
     id: 1,
@@ -162,7 +178,7 @@ export const baseFeedPosts: FeedPost[] = [
         author: 'Victor',
         timeAgo: '21 min',
         body: 'Quando sai a versao completa?',
-        superComment: { amount: 25, temperature: 'cold' },
+        superComment: { amount: 120, temperature: 'cold' },
       },
     ],
   },
@@ -189,7 +205,7 @@ export const baseFeedPosts: FeedPost[] = [
         author: 'Mateus',
         timeAgo: '47 min',
         body: 'Curti o clima do video, ficou elegante.',
-        superComment: { amount: 80, temperature: 'warm' },
+        superComment: { amount: 850, temperature: 'warm' },
       },
       { id: 3, author: 'Leo', timeAgo: '15 min', body: 'Posta mais conteudo nesse formato.' },
     ],
@@ -216,7 +232,7 @@ export const baseFeedPosts: FeedPost[] = [
         author: 'Henrique',
         timeAgo: '2h',
         body: 'Essa foto ficou muito forte, excelente enquadramento.',
-        superComment: { amount: 140, temperature: 'hot' },
+        superComment: { amount: 6500, temperature: 'hot' },
       },
     ],
   },
@@ -243,7 +259,7 @@ export const baseFeedPosts: FeedPost[] = [
         author: 'Thiago',
         timeAgo: '5h',
         body: 'Que voz mais incrivel, adorei o formato.',
-        superComment: { amount: 300, temperature: 'blaze' },
+        superComment: { amount: 24000, temperature: 'blaze' },
       },
       { id: 2, author: 'Rodrigo', timeAgo: '3h', body: 'Ja reservei meu horario, muito obrigado!' },
     ],
@@ -338,6 +354,7 @@ export const adProfiles: AdProfile[] = [
     state: 'RJ',
     age: 25,
     hasLocal: false,
+    leavingInDays: 3,
     badge: 'Top da semana',
     badges: ['leaving-soon', 'top-rated-10'],
     bio: 'Estilo sofisticado, fotos recentes e atendimento em areas nobres da cidade.',
@@ -383,6 +400,7 @@ export const adProfiles: AdProfile[] = [
     state: 'MG',
     age: 24,
     hasLocal: false,
+    leavingInDays: 6,
     badge: 'Nova',
     badges: ['new-profile', 'leaving-soon'],
     bio: 'Estreante com carisma natural, fotos profissionais e agenda flexivel.',
@@ -886,7 +904,7 @@ export const chatThreadsSeed: ChatThread[] = [
           author: 'Rafael',
           timeAgo: '1h',
           body: 'Simplesmente incrivel, mais conteudo assim!',
-          superComment: { amount: 40, temperature: 'cold' },
+          superComment: { amount: 180, temperature: 'cold' },
         },
         { id: 2, author: 'Lucas', timeAgo: '45 min', body: 'Que visual perfeito.' },
       ],
@@ -908,7 +926,7 @@ export const chatThreadsSeed: ChatThread[] = [
           author: 'Diego',
           timeAgo: '2h',
           body: 'Voce e simplesmente incrivel!',
-          superComment: { amount: 110, temperature: 'warm' },
+          superComment: { amount: 1200, temperature: 'warm' },
         },
       ],
     },
@@ -930,7 +948,7 @@ export const chatThreadsSeed: ChatThread[] = [
           author: 'Marcos',
           timeAgo: '1h',
           body: 'Quando agenda abre?',
-          superComment: { amount: 220, temperature: 'hot' },
+          superComment: { amount: 7600, temperature: 'hot' },
         },
       ],
     },
@@ -951,7 +969,7 @@ export const chatThreadsSeed: ChatThread[] = [
           author: 'Andre',
           timeAgo: '30 min',
           body: 'Mandei mensagem, espero sua resposta!',
-          superComment: { amount: 450, temperature: 'blaze' },
+          superComment: { amount: 26000, temperature: 'blaze' },
         },
       ],
     },

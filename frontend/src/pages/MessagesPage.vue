@@ -77,6 +77,7 @@
                     :src="message.content"
                     class="rounded-borders chat-img"
                     :ratio="4/3"
+                    @click="openImagePreview(message.content)"
                   />
                 </template>
                 <template v-else-if="message.type === 'video'">
@@ -187,6 +188,12 @@
     <input ref="videoCaptureInput" class="capture-input" type="file" accept="video/*" capture="environment" @change="handleCapturedFile($event, 'video')" />
     <input ref="videoGalleryInput" class="capture-input" type="file" accept="video/*" @change="handleCapturedFile($event, 'video')" />
 
+    <image-viewer-dialog
+      v-model="imageViewerOpen"
+      :src="selectedImageSrc"
+      alt="Imagem do chat"
+    />
+
   </q-page>
 </template>
 
@@ -197,6 +204,7 @@ import { useRoute, useRouter } from 'vue-router';
 import VoiceRecorder from 'src/components/VoiceRecorder.vue';
 import ChatVoicePlayer from 'src/components/ChatVoicePlayer.vue';
 import ChatVideoPlayer from 'src/components/ChatVideoPlayer.vue';
+import ImageViewerDialog from 'src/components/ImageViewerDialog.vue';
 import { chatThreadsSeed, type ChatMessage, type ChatThread } from 'src/data/mock-content';
 import ThreadList from 'src/components/ThreadList.vue';
 
@@ -217,6 +225,8 @@ const imageCaptureInput = ref<HTMLInputElement | null>(null);
 const imageGalleryInput = ref<HTMLInputElement | null>(null);
 const videoCaptureInput = ref<HTMLInputElement | null>(null);
 const videoGalleryInput = ref<HTMLInputElement | null>(null);
+const imageViewerOpen = ref(false);
+const selectedImageSrc = ref('');
 
 const filteredThreads = computed(() => {
   const term = search.value.trim().toLowerCase();
@@ -374,6 +384,11 @@ function notifyFeature(feature: string) {
   });
 }
 
+function openImagePreview(src: string) {
+  selectedImageSrc.value = src;
+  imageViewerOpen.value = true;
+}
+
 watch(
   () => route.query.thread,
   (threadQuery) => {
@@ -485,6 +500,7 @@ watch(selectedThreadId, (id) => {
   max-width: 260px;
   height: auto;
   border-radius: 12px;
+  cursor: zoom-in;
 }
 
 // ── Dialog mobile ──

@@ -1,55 +1,64 @@
 <template>
-  <div class="super-comment-wrap q-mt-sm">
-    <div class="row items-center justify-between q-col-gutter-sm">
-      <div class="col">
-        <q-toggle
-          :model-value="enabled"
-          color="warning"
-          label="Enviar como super comentario"
-          :disable="!canComment"
-          @update:model-value="onToggle"
-          @click="handleIntent"
-        />
-      </div>
-      <div v-if="enabled" class="col-auto">
-        <q-chip color="warning" text-color="black" icon="bolt" dense>
-          {{ amountLabel }} J-GOLD
+  <div class="super-comment-wrap">
+    <div class="row items-center justify-between q-col-gutter-sm q-mb-xs">
+      <div class="col text-caption text-weight-medium">Super Comment</div>
+      <div class="col-auto">
+        <q-chip dense icon="bolt" :class="`tier-chip tier-chip--${temperature}`">
+          {{ temperatureLabel }} · {{ amountLabel }} J-GOLD
         </q-chip>
       </div>
     </div>
 
-    <div v-if="enabled" class="q-mt-sm q-gutter-sm">
+    <div class="q-gutter-sm">
+      <q-slider
+        :model-value="sliderAmount"
+        :min="SUPER_COMMENT_MIN_AMOUNT"
+        :max="SUPER_COMMENT_SLIDER_MAX"
+        :step="100"
+        color="warning"
+        track-color="orange-3"
+        thumb-color="deep-orange"
+        label
+        :label-value="`${sliderAmount.toLocaleString('pt-BR')} J-GOLD`"
+        @update:model-value="onSliderChange"
+      />
+
+      <div class="row items-center q-gutter-sm">
+        <q-btn
+          flat
+          dense
+          no-caps
+          icon="edit"
+          :label="showCustomInput ? 'Fechar digitacao manual' : 'Digitar outro valor'"
+          @click="showCustomInput = !showCustomInput"
+        />
+        <div class="text-caption text-grey-6">Range padrao: 100-20.000</div>
+      </div>
+
       <q-input
-        :model-value="amountModel"
+        v-if="showCustomInput"
+        :model-value="manualAmount"
         type="number"
         dense
         filled
-        min="5"
-        max="9999"
-        label="Valor do destaque (J-GOLD)"
+        :min="SUPER_COMMENT_MIN_AMOUNT"
+        label="Valor manual (J-GOLD)"
         suffix="J-GOLD"
-        @update:model-value="onAmountChange"
-      />
-
-      <q-btn-toggle
-        :model-value="temperatureModel"
-        unelevated
-        rounded
-        no-caps
-        spread
-        toggle-color="primary"
-        color="grey-3"
-        text-color="grey-8"
-        :options="temperatureOptions"
-        @update:model-value="onTemperatureChange"
+        @update:model-value="onManualAmountChange"
       />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import type { CommentTemperature, SuperCommentPayload } from 'src/types/comments';
+import { computed, ref } from 'vue';
+import { commentTemperatureLabelMap } from 'src/data/mock-content';
+import {
+  SUPER_COMMENT_MIN_AMOUNT,
+  SUPER_COMMENT_SLIDER_MAX,
+  resolveSuperCommentTemperature,
+  type SuperCommentPayload,
+} from 'src/types/comments';
 
 const props = defineProps<{
   canComment: boolean;
@@ -61,17 +70,18 @@ const emit = defineEmits<{
   'request-auth': [];
 }>();
 
-const temperatureOptions: { label: string; value: CommentTemperature }[] = [
-  { label: 'Frio', value: 'cold' },
-  { label: 'Morno', value: 'warm' },
-  { label: 'Quente', value: 'hot' },
-  { label: 'Em chamas', value: 'blaze' },
-];
+const showCustomInput = ref(false);
+const sliderAmount = computed(() => {
+  const base = props.modelValue?.amount ?? SUPER_COMMENT_MIN_AMOUNT;
+  return Math.max(SUPER_COMMENT_MIN_AMOUNT, Math.min(SUPER_COMMENT_SLIDER_MAX, Math.round(base / 100) * 100));
+});
 
-const enabled = computed(() => Boolean(props.modelValue));
-const amountModel = computed(() => props.modelValue?.amount ?? 20);
-const temperatureModel = computed<CommentTemperature>(() => props.modelValue?.temperature ?? 'warm');
-const amountLabel = computed(() => amountModel.value.toLocaleString('pt-BR'));
+const manualAmount = computed(() => props.modelValue?.amount ?? SUPER_COMMENT_MIN_AMOUNT);
+const temperature = computed(() =>
+  resolveSuperCommentTemperature(props.modelValue?.amount ?? SUPER_COMMENT_MIN_AMOUNT),
+);
+const temperatureLabel = computed(() => commentTemperatureLabelMap[temperature.value]);
+const amountLabel = computed(() => (props.modelValue?.amount ?? SUPER_COMMENT_MIN_AMOUNT).toLocaleString('pt-BR'));
 
 function handleIntent() {
   if (!props.canComment) {
@@ -79,47 +89,40 @@ function handleIntent() {
   }
 }
 
-function onToggle(value: boolean) {
-  if (!props.canComment) {
-    emit('request-auth');
-    emit('update:modelValue', null);
-    return;
-  }
-
-  if (!value) {
-    emit('update:modelValue', null);
-    return;
-  }
+function emitAmount(amount: number) {
+  const normalized = Math.max(SUPER_COMMENT_MIN_AMOUNT, Math.round(amount));
 
   emit('update:modelValue', {
-    amount: amountModel.value,
-    temperature: temperatureModel.value,
+    amount: normalized,
+    temperature: resolveSuperCommentTemperature(normalized),
   });
 }
 
-function onAmountChange(rawValue: number | string | null) {
-  if (!props.modelValue) {
+function onSliderChange(rawValue: number | null) {
+  if (!props.canComment) {
+    handleIntent();
+    return;
+  }
+
+  if (rawValue === null) {
+    return;
+  }
+
+  emitAmount(rawValue);
+}
+
+function onManualAmountChange(rawValue: number | string | null) {
+  if (!props.canComment) {
+    handleIntent();
     return;
   }
 
   const numeric = Number(rawValue ?? 0);
-  const clamped = Number.isFinite(numeric) ? Math.max(5, Math.min(9999, Math.round(numeric))) : 5;
-
-  emit('update:modelValue', {
-    ...props.modelValue,
-    amount: clamped,
-  });
-}
-
-function onTemperatureChange(value: CommentTemperature) {
-  if (!props.modelValue) {
+  if (!Number.isFinite(numeric)) {
     return;
   }
 
-  emit('update:modelValue', {
-    ...props.modelValue,
-    temperature: value,
-  });
+  emitAmount(numeric);
 }
 </script>
 
@@ -129,5 +132,25 @@ function onTemperatureChange(value: CommentTemperature) {
   border: 1px solid rgba(255, 193, 7, 0.35);
   background: rgba(255, 193, 7, 0.08);
   padding: 10px 12px;
+}
+
+.tier-chip {
+  color: #fff;
+}
+
+.tier-chip--cold {
+  background: #1e88e5;
+}
+
+.tier-chip--warm {
+  background: #fb8c00;
+}
+
+.tier-chip--hot {
+  background: #ef6c00;
+}
+
+.tier-chip--blaze {
+  background: #d50000;
 }
 </style>
