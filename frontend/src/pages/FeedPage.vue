@@ -202,6 +202,7 @@ import PostCommentsDialog from 'src/components/PostCommentsDialog.vue';
 import SimpleVideoPlayer from 'src/components/SimpleVideoPlayer.vue';
 import { useAuth } from 'src/composables/useAuth';
 import { baseFeedPosts, type FeedPost } from 'src/data/mock-content';
+import type { SubmitCommentPayload } from 'src/types/comments';
 import type { PostComposerMode, PostComposerPayload } from 'src/types/post-composer';
 import UndrawPostOnline from 'vue-undraw/UndrawPostOnline.vue';
 import UndrawSocialMedia from 'vue-undraw/UndrawSocialMedia.vue';
@@ -280,35 +281,43 @@ function toggleLike(post: FeedPost) {
   post.likes += post.liked ? 1 : -1;
 }
 
-function addComment(post: FeedPost, message: string) {
+function addComment(post: FeedPost, payload: SubmitCommentPayload) {
   if (!guardAction('comentar no feed')) {
     return;
   }
 
-  post.comments.unshift({
+  const comment: FeedPost['comments'][number] = {
     id: Date.now(),
     author: auth.state.email.split('@')[0] ?? 'Voce',
     timeAgo: 'agora',
-    body: message,
-  });
+    body: payload.message,
+  };
+
+  if (payload.superComment) {
+    comment.superComment = payload.superComment;
+  }
+
+  post.comments.unshift(comment);
 
   $q.notify({
     type: 'positive',
-    message: `Comentario enviado para ${post.author}.`,
+    message: payload.superComment
+      ? `Super comentario de ${payload.superComment.amount.toLocaleString('pt-BR')} J-GOLD enviado para ${post.author}.`
+      : `Comentario enviado para ${post.author}.`,
     timeout: 1800,
   });
 }
 
-function submitInlineComment(post: FeedPost, message: string) {
-  addComment(post, message);
+function submitInlineComment(post: FeedPost, payload: SubmitCommentPayload) {
+  addComment(post, payload);
 }
 
-function submitDialogComment(message: string) {
+function submitDialogComment(payload: SubmitCommentPayload) {
   if (!selectedPost.value) {
     return;
   }
 
-  addComment(selectedPost.value, message);
+  addComment(selectedPost.value, payload);
 }
 
 function openComments(post: FeedPost) {
