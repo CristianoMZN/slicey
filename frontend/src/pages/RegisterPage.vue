@@ -10,7 +10,7 @@
       </q-card-section>
 
       <q-card-section>
-        <q-form class="row q-col-gutter-md" @submit="submitRegister">
+        <q-form v-if="step === 'form'" class="row q-col-gutter-md" @submit="submitRegister">
           <div class="col-12">
             <q-btn-toggle
               v-model="loginType"
@@ -114,13 +114,56 @@
             <q-btn flat rounded icon="arrow_back" label="Voltar ao feed" :to="{ name: 'feed' }" />
           </div>
         </q-form>
+
+        <div v-else class="verification-step">
+          <q-banner rounded class="bg-primary text-white q-mb-md">
+            Enviamos um codigo de verificacao para {{ verificationIdentityLabel }}.
+          </q-banner>
+
+          <q-input
+            v-model="verificationCode"
+            filled
+            dense
+            maxlength="6"
+            mask="######"
+            label="Codigo de verificacao"
+            hint="Modo simulacao: qualquer codigo com 6 numeros sera aceito."
+          />
+
+          <div class="row q-gutter-sm q-mt-md">
+            <q-btn
+              color="primary"
+              rounded
+              unelevated
+              icon="verified"
+              label="Confirmar codigo"
+              :loading="auth.state.isSubmittingAuth"
+              @click="confirmVerification"
+            />
+            <q-btn
+              flat
+              rounded
+              icon="refresh"
+              :label="resendLabel"
+              :disable="resendCountdown > 0"
+              @click="resendCode"
+            />
+            <q-btn
+              flat
+              rounded
+              icon="edit"
+              label="Editar contato"
+              @click="backToForm"
+            />
+          </div>
+        </div>
       </q-card-section>
     </q-card>
   </q-page>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useAuth } from 'src/composables/useAuth';
@@ -140,6 +183,13 @@ const passwordConfirm = ref('');
 const acceptTerms = ref(false);
 const showPassword = ref(false);
 const showPasswordConfirm = ref(false);
+const step = ref<'form' | 'verify'>('form');
+const verificationIdentity = ref('');
+const verificationCode = ref('');
+const resendCountdown = ref(0);
+let resendTimer: ReturnType<typeof setInterval> | null = null;
+
+const RESEND_SECONDS = 30;
 
 const requiredRules = [(value: string) => Boolean(value?.trim()) || 'Campo obrigatorio'];
 const emailRules = [
@@ -160,22 +210,149 @@ const confirmRules = [
 ];
 
 const loginIdentity = computed(() => (loginType.value === 'email' ? email.value : phone.value));
+const verificationIdentityLabel = computed(() =>
+  loginType.value === 'email'
+    ? `email ${verificationIdentity.value}`
+    : `celular ${formatPhoneForLabel(verificationIdentity.value)}`,
+);
+const resendLabel = computed(() =>
+  resendCountdown.value > 0 ? `Reenviar em ${resendCountdown.value}s` : 'Reenviar codigo',
+);
 
-async function submitRegister() {
+function formatPhoneForLabel(rawPhone: string): string {
+  const digits = rawPhone.replace(/\D/g, '');
+
+  if (digits.length < 10) {
+    return rawPhone;
+  }
+
+  const ddd = digits.slice(0, 2);
+  const first = digits.slice(2, 7);
+  const last = digits.slice(7, 11);
+  return `(${ddd}) ${first}-${last}`;
+}
+
+function startResendCountdown() {
+  if (resendTimer) {
+    clearInterval(resendTimer);
+  }
+
+  resendCountdown.value = RESEND_SECONDS;
+
+  resendTimer = setInterval(() => {
+    if (resendCountdown.value <= 1) {
+      resendCountdown.value = 0;
+      if (resendTimer) {
+        clearInterval(resendTimer);
+        resendTimer = null;
+      }
+      return;
+    }
+
+    resendCountdown.value -= 1;
+  }, 1000);
+}
+
+function validateForm(): boolean {
+  if (!fullName.value.trim()) {
+    $q.notify({ type: 'warning', message: 'Informe seu nome completo.', timeout: 2200 });
+    return false;
+  }
+
+  if (loginType.value === 'email' && !/\S+@\S+\.\S+/.test(email.value)) {
+    $q.notify({ type: 'warning', message: 'Informe um email valido.', timeout: 2200 });
+    return false;
+  }
+
+  if (loginType.value === 'phone' && phone.value.replace(/\D/g, '').length < 10) {
+    $q.notify({ type: 'warning', message: 'Informe um telefone valido.', timeout: 2200 });
+    return false;
+  }
+
+  if (password.value.length < 6) {
+    $q.notify({ type: 'warning', message: 'Use pelo menos 6 caracteres na senha.', timeout: 2200 });
+    return false;
+  }
+
+  if (password.value !== passwordConfirm.value) {
+    $q.notify({ type: 'warning', message: 'As senhas nao conferem.', timeout: 2200 });
+    return false;
+  }
+
   if (!acceptTerms.value) {
-    $q.notify({
-      type: 'warning',
-      message: 'Voce precisa aceitar os termos para continuar.',
-      timeout: 2200,
-    });
+    $q.notify({ type: 'warning', message: 'Voce precisa aceitar os termos para continuar.', timeout: 2200 });
+    return false;
+  }
+
+  return true;
+}
+
+function generateVerificationCode(): string {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+async function mockVerifyCode(): Promise<boolean> {
+  await new Promise<void>((resolve) => {
+    setTimeout(() => resolve(), 500);
+  });
+
+  return true;
+}
+
+function sendVerificationCode() {
+  const demoCode = generateVerificationCode();
+  verificationCode.value = '';
+  startResendCountdown();
+
+  const channel = loginType.value === 'email' ? 'email' : 'celular';
+  $q.notify({
+    type: 'info',
+    message: `Codigo enviado por ${channel}. (demo: ${demoCode})`,
+    timeout: 3500,
+    position: 'top',
+  });
+}
+
+function submitRegister() {
+  if (!validateForm()) {
     return;
   }
 
-  await auth.registerQuick(loginIdentity.value);
+  verificationIdentity.value = loginIdentity.value.trim();
+  step.value = 'verify';
+  sendVerificationCode();
+}
+
+function resendCode() {
+  if (resendCountdown.value > 0) {
+    return;
+  }
+
+  sendVerificationCode();
+}
+
+function backToForm() {
+  step.value = 'form';
+  verificationCode.value = '';
+}
+
+async function confirmVerification() {
+  if (verificationCode.value.length !== 6) {
+    $q.notify({ type: 'warning', message: 'Digite os 6 numeros do codigo.', timeout: 2200 });
+    return;
+  }
+
+  const isValid = await mockVerifyCode();
+  if (!isValid) {
+    $q.notify({ type: 'negative', message: 'Codigo invalido. Tente novamente.', timeout: 2200 });
+    return;
+  }
+
+  await auth.registerQuick(verificationIdentity.value);
 
   $q.notify({
     type: 'positive',
-    message: 'Conta criada com sucesso.',
+    message: 'Conta criada e contato verificado com sucesso.',
     timeout: 2200,
     position: 'top',
   });
@@ -183,11 +360,21 @@ async function submitRegister() {
   const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/feed';
   void router.push(redirect);
 }
+
+onBeforeUnmount(() => {
+  if (resendTimer) {
+    clearInterval(resendTimer);
+  }
+});
 </script>
 
 <style scoped lang="scss">
 .register-card {
   max-width: 820px;
   margin: 0 auto;
+}
+
+.verification-step {
+  max-width: 540px;
 }
 </style>
