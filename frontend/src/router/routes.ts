@@ -32,6 +32,12 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true },
       },
       {
+        path: 'anuncios/:id/galeria',
+        name: 'anuncio-galeria',
+        component: () => import('pages/AdProfileGalleryPage.vue'),
+        meta: { requiresAuth: true },
+      },
+      {
         path: 'perfil',
         name: 'perfil',
         component: () => import('pages/ProfilePage.vue'),
@@ -52,6 +58,17 @@ const routes: RouteRecordRaw[] = [
         path: 'registro',
         name: 'registro',
         component: () => import('pages/RegisterPage.vue'),
+      },
+      {
+        path: 'login',
+        name: 'login',
+        component: () => import('pages/LoginPage.vue'),
+      },
+      {
+        path: 'configuracoes',
+        name: 'configuracoes',
+        component: () => import('pages/SettingsPage.vue'),
+        meta: { requiresAuth: true },
       },
     ],
   },

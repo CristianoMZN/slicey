@@ -52,7 +52,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { commentTemperatureLabelMap } from 'src/data/mock-content';
+import { commentTemperatureLabelMap } from 'src/types/content';
 import {
   SUPER_COMMENT_MIN_AMOUNT,
   SUPER_COMMENT_SLIDER_MAX,

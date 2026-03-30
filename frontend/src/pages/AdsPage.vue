@@ -97,7 +97,21 @@
       </q-card>
     </q-slide-transition>
 
+    <q-card v-if="isLoading" flat bordered class="section-card q-pa-md q-mt-md">
+      <q-skeleton type="text" class="q-mb-sm" width="40%" />
+      <q-skeleton type="rect" height="220px" class="q-mb-sm" />
+      <q-skeleton type="rect" height="220px" />
+    </q-card>
+
+    <q-card v-else-if="loadError" flat bordered class="section-card q-pa-lg text-center q-mt-md">
+      <q-icon size="40px" name="wifi_off" color="negative" />
+      <div class="text-subtitle1 text-weight-bold q-mt-sm">Falha ao carregar perfis</div>
+      <div class="text-body2 text-grey-6 q-mt-xs q-mb-md">{{ loadError }}</div>
+      <q-btn color="primary" rounded unelevated label="Tentar novamente" @click="loadProfiles" />
+    </q-card>
+
     <q-infinite-scroll
+      v-else
       class="q-mt-md"
       :offset="180"
       :disable="allLoaded || filteredProfiles.length === 0"
@@ -139,13 +153,17 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import AdProfileCard from 'src/components/AdProfileCard.vue';
-import { adProfiles } from 'src/data/mock-content';
-import type { AdGender, AdProfileBadge, AdSexuality } from 'src/data/mock-content';
+import { adBadgeLabelMap } from 'src/constants/content';
 import { useUserPreferences } from 'src/composables/useUserPreferences';
+import { fetchAdProfiles } from 'src/services/content.service';
+import type { AdGender, AdProfile, AdSexuality } from 'src/types/content';
 
 const { preferences } = useUserPreferences();
+const profiles = ref<AdProfile[]>([]);
+const isLoading = ref(true);
+const loadError = ref('');
 
 const search = ref('');
 const selectedCity = ref<string | null>(null);
@@ -168,18 +186,14 @@ function prefsSexuality(): AdSexuality | null {
 const selectedGender = ref<AdGender | null>(prefsGender());
 const selectedSexuality = ref<AdSexuality | null>(prefsSexuality());
 
-const cityOptions = [...new Set(adProfiles.map((profile) => profile.city))].sort();
-const badgeLabelMap: Record<AdProfileBadge, string> = {
-  'verified-account': 'Conta verificada',
-  'leaving-soon': 'Pouco tempo na cidade',
-  'new-profile': 'Perfil novo',
-  'top-rated-10': 'Melhor rate (ultimas 10)',
-};
-const badgeOptions = [
-  ...new Set(
-    adProfiles.flatMap((profile) => (profile.badges ?? []).map((badge) => badgeLabelMap[badge])),
-  ),
-].sort();
+const cityOptions = computed(() => [...new Set(profiles.value.map((profile) => profile.city))].sort());
+const badgeOptions = computed(() => {
+  const options = profiles.value.flatMap((profile) =>
+    (profile.badges ?? []).map((badge) => adBadgeLabelMap[badge]),
+  );
+
+  return [...new Set(options)].sort();
+});
 
 const genderOptions: { label: string; value: AdGender }[] = [
   { label: 'Feminino', value: 'Feminino' },
@@ -195,7 +209,7 @@ const sexualityOptions: { label: string; value: AdSexuality }[] = [
 const filteredProfiles = computed(() => {
   const normalizedSearch = search.value.trim().toLowerCase();
 
-  return adProfiles.filter((profile) => {
+  return profiles.value.filter((profile) => {
     const matchesSearch =
       !normalizedSearch ||
       [profile.name, profile.city, profile.bio, profile.badge]
@@ -204,7 +218,7 @@ const filteredProfiles = computed(() => {
         .includes(normalizedSearch);
 
     const matchesCity = !selectedCity.value || profile.city === selectedCity.value;
-    const profileBadgeLabels = (profile.badges ?? []).map((badge) => badgeLabelMap[badge]);
+    const profileBadgeLabels = (profile.badges ?? []).map((badge) => adBadgeLabelMap[badge]);
     const matchesBadge = !selectedBadge.value || profileBadgeLabels.includes(selectedBadge.value);
     const matchesGender = !selectedGender.value || profile.gender === selectedGender.value;
     const matchesSexuality = !selectedSexuality.value || profile.sexuality === selectedSexuality.value;
@@ -234,6 +248,24 @@ function clearFilters() {
   selectedGender.value = null;
   selectedSexuality.value = null;
 }
+
+async function loadProfiles() {
+  isLoading.value = true;
+  loadError.value = '';
+
+  try {
+    // Dica para iniciantes: troque somente fetchAdProfiles() quando o backend mudar.
+    profiles.value = await fetchAdProfiles();
+  } catch {
+    loadError.value = 'Nao foi possivel carregar os perfis. Tente novamente.';
+  } finally {
+    isLoading.value = false;
+  }
+}
+
+onMounted(() => {
+  void loadProfiles();
+});
 </script>
 
 <style scoped lang="scss">

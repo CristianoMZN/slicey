@@ -1,6 +1,17 @@
 <template>
   <q-page class="frames-page" style="padding: 0; overflow: hidden">
-    <div ref="scrollRef" class="frames-scroll" :style="{ height: `${frameHeight}px` }">
+    <div v-if="isLoadingFrames" class="frames-loading column items-center justify-center">
+      <q-spinner-dots color="white" size="48px" />
+      <div class="text-subtitle1 q-mt-md">Carregando Frames...</div>
+    </div>
+
+    <div v-else-if="loadFramesError" class="frames-loading column items-center justify-center q-px-lg">
+      <q-icon name="wifi_off" color="negative" size="56px" />
+      <div class="text-subtitle1 text-center q-mt-md">{{ loadFramesError }}</div>
+      <q-btn color="primary" rounded unelevated label="Tentar novamente" class="q-mt-md" @click="loadFrames" />
+    </div>
+
+    <div v-else ref="scrollRef" class="frames-scroll" :style="{ height: `${frameHeight}px` }">
       <div
         v-for="frame in frames"
         :key="frame.id"
@@ -290,9 +301,10 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useQuasar } from 'quasar';
 import PostCommentsDialog from 'src/components/PostCommentsDialog.vue';
-import { frameVideos, type FrameVideo } from 'src/data/mock-content';
 import { useAuth } from 'src/composables/useAuth';
+import { fetchFrameVideos } from 'src/services/content.service';
 import type { SubmitCommentPayload } from 'src/types/comments';
+import type { FrameVideo } from 'src/types/content';
 
 type CreatorMode = 'idle' | 'recording' | 'preview';
 type FrameFilter = {
@@ -309,9 +321,10 @@ const isAuthenticated = computed(() => auth.isAuthenticated.value);
 const frameHeight = ref(window.innerHeight);
 const frameBottomInset = ref(20);
 const frameBottomInsetPx = computed(() => `${frameBottomInset.value}px`);
+const isLoadingFrames = ref(true);
+const loadFramesError = ref('');
 
-// Local reactive copy so likes/liked mutate reactively
-const frames = ref<FrameVideo[]>(frameVideos.map((f) => ({ ...f, comments: [...f.comments] })));
+const frames = ref<FrameVideo[]>([]);
 
 const frameFilters: FrameFilter[] = [
   { id: 'none', label: 'Original', cssFilter: 'none' },
@@ -730,6 +743,7 @@ async function postRecordedVideo() {
       liked: false,
       comments: [],
     });
+    void nextTick().then(() => setupObserver());
 
     creatorOpen.value = false;
     $q.notify({
@@ -764,6 +778,7 @@ let observer: IntersectionObserver | null = null;
 
 function setupObserver() {
   if (!scrollRef.value) return;
+  observer?.disconnect();
   observer = new IntersectionObserver(
     (entries) => {
       for (const entry of entries) {
@@ -784,6 +799,22 @@ function setupObserver() {
   );
 }
 
+async function loadFrames() {
+  isLoadingFrames.value = true;
+  loadFramesError.value = '';
+
+  try {
+    // Dica para iniciantes: a pagina nao conhece endpoint, so chama o service.
+    frames.value = await fetchFrameVideos();
+    await nextTick();
+    setupObserver();
+  } catch {
+    loadFramesError.value = 'Nao foi possivel carregar os videos agora.';
+  } finally {
+    isLoadingFrames.value = false;
+  }
+}
+
 function updateViewportMetrics() {
   const pageContainer = document.querySelector('.q-page-container');
   const pageStyles = pageContainer ? getComputedStyle(pageContainer) : null;
@@ -798,7 +829,7 @@ function updateViewportMetrics() {
 
 onMounted(() => {
   updateViewportMetrics();
-  setupObserver();
+  void loadFrames();
   window.addEventListener('jobbie:frames-create-video', handleExternalCreateRequest);
   window.addEventListener('resize', updateViewportMetrics);
   window.addEventListener('orientationchange', updateViewportMetrics);
@@ -829,6 +860,11 @@ watch(
 <style scoped lang="scss">
 .frames-page {
   background: #000;
+}
+
+.frames-loading {
+  min-height: 100%;
+  color: #fff;
 }
 
 .creator-card {

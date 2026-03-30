@@ -47,7 +47,7 @@
 <script setup lang="ts">
 import CommentMessageCard from 'src/components/CommentMessageCard.vue';
 import PostCommentComposer from 'src/components/PostCommentComposer.vue';
-import type { FeedComment } from 'src/data/mock-content';
+import type { FeedComment } from 'src/types/content';
 import type { SubmitCommentPayload } from 'src/types/comments';
 
 defineProps<{

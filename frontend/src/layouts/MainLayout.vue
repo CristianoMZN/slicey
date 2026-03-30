@@ -110,7 +110,7 @@
     </q-header>
 
     <q-page-container>
-      <router-view />
+      <router-view v-if="ageVerification.state.hydrated" />
     </q-page-container>
 
     <q-footer class="jobbie-footer q-px-sm q-py-xs">
@@ -158,7 +158,7 @@
                   {{ isAuthenticated ? auth.state.email : 'Entre para curtir, comentar e conversar.' }}
                 </div>
                 <div class="q-mt-sm row q-gutter-sm">
-                  <q-chip dense outline color="primary">{{ isAuthenticated ? 'Conta ativa' : 'Modo visitante' }}</q-chip>
+                  <q-chip dense outline color="primary">{{ isAuthenticated ? accountTypeLabel : 'Modo visitante' }}</q-chip>
                   <q-chip dense outline color="secondary">Frames em destaque</q-chip>
                 </div>
               </div>
@@ -259,9 +259,9 @@
     >
       <q-card class="auth-card">
         <q-card-section class="q-pb-none">
-          <div class="text-h6 text-weight-bold">Crie sua conta</div>
+          <div class="text-h6 text-weight-bold">Acesso necessario</div>
           <div class="text-subtitle2 text-grey-6">
-            Registre-se para {{ auth.state.pendingAction }} e desbloquear curtidas, comentarios e mensagens.
+            Voce precisa estar logado para {{ auth.state.pendingAction }}.
           </div>
         </q-card-section>
 
@@ -274,20 +274,25 @@
         <q-card-actions align="right" class="q-px-md q-pb-md">
           <q-btn flat label="Agora nao" @click="auth.closeAuthDialog" />
           <q-btn
+            flat
+            rounded
+            icon="person_add"
+            label="Registrar"
+            @click="handleRegister"
+          />
+          <q-btn
             color="primary"
             unelevated
             rounded
-            :loading="auth.state.isSubmittingAuth"
-            @click="handleRegister"
-          >
-            <template #loading>
-              <q-spinner-dots />
-            </template>
-            Registrar em 1 clique
-          </q-btn>
+            icon="login"
+            label="Entrar"
+            @click="handleLogin"
+          />
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <age-verification-gate />
   </q-layout>
 </template>
 
@@ -295,6 +300,8 @@
 import { computed, ref } from 'vue';
 import { useQuasar } from 'quasar';
 import { useRoute, useRouter, type RouteLocationRaw } from 'vue-router';
+import AgeVerificationGate from 'src/components/AgeVerificationGate.vue';
+import { useAgeVerification } from 'src/composables/useAgeVerification';
 import { useAuth } from 'src/composables/useAuth';
 import UndrawLogin from 'vue-undraw/UndrawLogin.vue';
 
@@ -310,6 +317,7 @@ const $q = useQuasar();
 const router = useRouter();
 const route = useRoute();
 const auth = useAuth();
+const ageVerification = useAgeVerification();
 const mobileMenuOpen = ref(false);
 
 const isAuthenticated = computed(() => auth.isAuthenticated.value);
@@ -324,6 +332,17 @@ const userDisplayName = computed(() => {
 });
 const userInitial = computed(() => userDisplayName.value.charAt(0).toUpperCase() || 'J');
 const isFramesRoute = computed(() => route.name === 'frames');
+const accountTypeLabel = computed(() => {
+  if (auth.state.userType === 'creator') {
+    return auth.state.creatorVerificationStatus === 'approved' ? 'Criador verificado' : 'Criador em analise';
+  }
+
+  if (auth.state.userType === 'registered') {
+    return 'Conta registrada';
+  }
+
+  return 'Modo visitante';
+});
 
 const isDarkMode = computed({
   get: () => $q.dark.isActive,
@@ -350,7 +369,7 @@ const mobileMenuTopbarBorder = computed(() =>
 );
 
 function openAuthDialog(action: string) {
-  void router.push({ name: 'registro', query: { source: action } });
+  void router.push({ name: 'login', query: { source: action } });
 }
 
 function openAuthFromMobile() {
@@ -361,6 +380,11 @@ function openAuthFromMobile() {
 function handleRegister() {
   auth.closeAuthDialog();
   void router.push({ name: 'registro', query: { source: 'acesso-rapido' } });
+}
+
+function handleLogin() {
+  auth.closeAuthDialog();
+  void router.push({ name: 'login', query: { source: 'acesso-rapido' } });
 }
 
 function goToRoute(to: RouteLocationRaw, closeMobileMenu = false) {
@@ -456,6 +480,12 @@ const desktopMenuItems = computed<MenuItem[]>(() => [
     to: { name: 'perfil' },
   },
   {
+    label: 'Configurações',
+    caption: 'Idioma, aparência, preferências e sessão',
+    icon: 'settings',
+    to: { name: 'configuracoes' },
+  },
+  {
     label: 'Favoritos',
     caption: 'Colecoes e perfis salvos para rever depois',
     icon: 'favorite',
@@ -499,6 +529,12 @@ const mobileMenuItems = computed<MenuItem[]>(() => [
     caption: 'Explorar kits, creditos e beneficos premium',
     icon: 'storefront',
     to: { name: 'loja' },
+  },
+  {
+    label: 'Configurações',
+    caption: 'Idioma, aparência, preferências e sessão',
+    icon: 'settings',
+    to: { name: 'configuracoes' },
   },
 ]);
 </script>

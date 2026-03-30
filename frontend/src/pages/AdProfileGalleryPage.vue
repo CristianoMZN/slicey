@@ -77,6 +77,18 @@
       </div>
     </q-card>
 
+    <q-card v-else-if="isLoadingProfile" flat bordered class="section-card q-pa-lg">
+      <q-skeleton type="text" class="q-mb-sm" width="40%" />
+      <q-skeleton type="rect" height="280px" />
+    </q-card>
+
+    <q-card v-else-if="loadProfileError" flat bordered class="section-card q-pa-lg text-center">
+      <q-icon size="40px" name="wifi_off" color="negative" />
+      <div class="text-subtitle1 text-weight-bold q-mt-sm">Falha ao carregar galeria</div>
+      <div class="text-body2 text-grey-6 q-mt-xs q-mb-md">{{ loadProfileError }}</div>
+      <q-btn color="primary" rounded unelevated label="Tentar novamente" @click="loadGallery" />
+    </q-card>
+
     <q-card v-else flat bordered class="section-card q-pa-lg text-center">
       <q-icon size="48px" name="person_off" color="warning" />
       <div class="text-h6 q-mt-sm">Perfil nao encontrado</div>
@@ -94,15 +106,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import ImageViewerDialog from 'src/components/ImageViewerDialog.vue';
-import { adProfilesDetails, portraitGalleryPool } from 'src/data/mock-content';
+import { fetchAdProfileDetailsById, fetchProfileGallery } from 'src/services/content.service';
+import type { AdProfileDetails } from 'src/types/content';
 
 const route = useRoute();
 
 const profileId = computed(() => Number.parseInt(route.params.id as string, 10));
-const profile = computed(() => adProfilesDetails.find((item) => item.id === profileId.value));
+const profile = ref<AdProfileDetails | null>(null);
+const isLoadingProfile = ref(true);
+const loadProfileError = ref('');
 
 const imageViewerOpen = ref(false);
 const activeImageIndex = ref(0);
@@ -110,27 +125,7 @@ const selectedFilter = ref<'all' | 'featured' | 'square'>('all');
 const visibleCount = ref(12);
 const PAGE_SIZE = 12;
 
-const fullGalleryImages = computed(() => {
-  if (!profile.value) {
-    return [];
-  }
-
-  const merged = Array.from(
-    new Set([
-      profile.value.coverImage,
-      profile.value.profileImage,
-      ...profile.value.images,
-      ...profile.value.gallery,
-      ...portraitGalleryPool,
-    ]),
-  );
-  const fallbackImage = merged[0] ?? '';
-
-  return Array.from(
-    { length: 36 },
-    (_, index) => merged[(index + profile.value!.id) % merged.length] ?? fallbackImage,
-  );
-});
+const fullGalleryImages = ref<string[]>([]);
 
 const filteredGalleryImages = computed(() => {
   if (selectedFilter.value === 'all') {
@@ -170,6 +165,40 @@ function openImageViewer(index: number) {
   activeImageIndex.value = index;
   imageViewerOpen.value = true;
 }
+
+async function loadGallery() {
+  if (Number.isNaN(profileId.value)) {
+    profile.value = null;
+    fullGalleryImages.value = [];
+    isLoadingProfile.value = false;
+    return;
+  }
+
+  isLoadingProfile.value = true;
+  loadProfileError.value = '';
+  visibleCount.value = PAGE_SIZE;
+
+  try {
+    // Dica para iniciantes: carregue dependencias da tela em um unico metodo async.
+    const loadedProfile = await fetchAdProfileDetailsById(profileId.value);
+    profile.value = loadedProfile;
+
+    if (!loadedProfile) {
+      fullGalleryImages.value = [];
+      return;
+    }
+
+    fullGalleryImages.value = await fetchProfileGallery(loadedProfile.id);
+  } catch {
+    loadProfileError.value = 'Nao foi possivel carregar a galeria agora.';
+  } finally {
+    isLoadingProfile.value = false;
+  }
+}
+
+watch(profileId, () => {
+  void loadGallery();
+}, { immediate: true });
 </script>
 
 <style scoped lang="scss">

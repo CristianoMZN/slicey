@@ -272,8 +272,9 @@ import PostCommentComposer from 'src/components/PostCommentComposer.vue';
 import PostCommentsDialog from 'src/components/PostCommentsDialog.vue';
 import SimpleVideoPlayer from 'src/components/SimpleVideoPlayer.vue';
 import { useAuth } from 'src/composables/useAuth';
-import { baseFeedPosts, type FeedPost } from 'src/data/mock-content';
+import { fetchFeedPostsPage } from 'src/services/content.service';
 import type { SubmitCommentPayload } from 'src/types/comments';
+import type { FeedPost } from 'src/types/content';
 import type { PostComposerMode, PostComposerPayload } from 'src/types/post-composer';
 import UndrawPostOnline from 'vue-undraw/UndrawPostOnline.vue';
 
@@ -286,8 +287,7 @@ const isDesktopFeed = computed(() => $q.platform.is.desktop);
 const isBootstrapping = ref(true);
 const posts = ref<FeedPost[]>([]);
 const currentPage = ref(0);
-const maxPages = 3;
-const allLoaded = computed(() => currentPage.value >= maxPages);
+const allLoaded = ref(false);
 const commentsDialogOpen = ref(false);
 const selectedPostId = ref<number | null>(null);
 const postComposerOpen = ref(false);
@@ -309,21 +309,6 @@ const desktopColumns = computed(() => {
 
   return columns;
 });
-
-function createBatch(page: number): FeedPost[] {
-  return baseFeedPosts.map((template, index) => ({
-    ...template,
-    id: page * 100 + template.id,
-    timeAgo: page === 0 ? template.timeAgo : `${page + index + 2}h`,
-    likes: template.likes + page * 17,
-    liked: false,
-    media: { ...template.media },
-    comments: template.comments.map((comment, commentIndex) => ({
-      ...comment,
-      id: page * 1000 + index * 100 + commentIndex + 1,
-    })),
-  }));
-}
 
 function guardAction(action: string): boolean {
   if (isAuthenticated.value) {
@@ -477,28 +462,43 @@ function submitNewPost(payload: PostComposerPayload) {
   });
 }
 
-async function onLoad(index: number, done: () => void) {
+async function onLoad(_index: number, done: () => void) {
   if (allLoaded.value) {
     done();
     return;
   }
 
-  await new Promise<void>((resolve) => {
-    setTimeout(() => resolve(), 700 + index * 70);
-  });
+  const nextPage = currentPage.value + 1;
+  const batch = await fetchFeedPostsPage(nextPage);
 
-  currentPage.value += 1;
-  posts.value.push(...createBatch(currentPage.value));
+  if (batch.length === 0) {
+    allLoaded.value = true;
+    done();
+    return;
+  }
+
+  currentPage.value = nextPage;
+  posts.value.push(...batch);
+
   done();
 }
 
 onMounted(async () => {
-  await new Promise<void>((resolve) => {
-    setTimeout(() => resolve(), 900);
-  });
-
-  posts.value = createBatch(0);
-  isBootstrapping.value = false;
+  try {
+    // Dica para iniciantes: carregamento inicial sempre no onMounted para manter o setup limpo.
+    const firstPage = await fetchFeedPostsPage(0);
+    posts.value = firstPage;
+    allLoaded.value = firstPage.length === 0;
+  } catch {
+    $q.notify({
+      type: 'negative',
+      message: 'Nao foi possivel carregar o feed.',
+      timeout: 2200,
+      position: 'top',
+    });
+  } finally {
+    isBootstrapping.value = false;
+  }
 });
 </script>
 

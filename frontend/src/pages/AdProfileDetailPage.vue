@@ -147,6 +147,19 @@
       </q-card-section>
     </q-card>
 
+    <q-card v-else-if="isLoadingProfile" flat bordered class="section-card q-pa-lg">
+      <q-skeleton type="rect" height="220px" class="q-mb-md" />
+      <q-skeleton type="text" class="q-mb-sm" width="60%" />
+      <q-skeleton type="text" width="80%" />
+    </q-card>
+
+    <q-card v-else-if="loadProfileError" flat bordered class="section-card q-pa-lg text-center">
+      <q-icon size="48px" name="wifi_off" color="negative" />
+      <div class="text-h6 q-mt-sm">Falha ao carregar perfil</div>
+      <div class="text-body2 text-grey-6 q-mt-xs q-mb-md">{{ loadProfileError }}</div>
+      <q-btn color="primary" rounded unelevated label="Tentar novamente" @click="loadProfileData" />
+    </q-card>
+
     <q-card v-else flat bordered class="section-card q-pa-lg text-center">
       <q-icon size="48px" name="person_off" color="warning" />
       <div class="text-h6 q-mt-sm">Perfil nao encontrado</div>
@@ -276,8 +289,13 @@ import PostCommentComposer from 'src/components/PostCommentComposer.vue';
 import PostCommentsDialog from 'src/components/PostCommentsDialog.vue';
 import SimpleVideoPlayer from 'src/components/SimpleVideoPlayer.vue';
 import { useAuth } from 'src/composables/useAuth';
-import { adProfilesDetails, baseFeedPosts, portraitGalleryPool, type FeedPost } from 'src/data/mock-content';
+import {
+  fetchAdProfileDetailsById,
+  fetchPostsByAuthorId,
+  fetchProfileGallery,
+} from 'src/services/content.service';
 import type { SubmitCommentPayload } from 'src/types/comments';
+import type { AdProfileDetails, FeedPost } from 'src/types/content';
 
 const route = useRoute();
 const router = useRouter();
@@ -286,51 +304,61 @@ const auth = useAuth();
 const isAuthenticated = computed(() => auth.isAuthenticated.value);
 
 const profileId = computed(() => Number.parseInt(route.params.id as string, 10));
-const profile = computed(() => adProfilesDetails.find((item) => item.id === profileId.value));
+const profile = ref<AdProfileDetails | null>(null);
 const profilePosts = ref<FeedPost[]>([]);
+const isLoadingProfile = ref(true);
+const loadProfileError = ref('');
 const commentsDialogOpen = ref(false);
 const selectedPostId = ref<number | null>(null);
 const imageViewerOpen = ref(false);
+const fullGalleryImages = ref<string[]>([]);
 const viewerImages = ref<string[]>([]);
 const viewerImageIndex = ref(0);
 const viewerTitle = ref('Visualizador de imagem');
 const selectedPost = computed(() => profilePosts.value.find((post) => post.id === selectedPostId.value));
 
-const fullGalleryImages = computed(() => {
-  if (!profile.value) {
-    return [];
-  }
-
-  const merged = Array.from(
-    new Set([
-      profile.value.coverImage,
-      profile.value.profileImage,
-      ...profile.value.images,
-      ...profile.value.gallery,
-      ...portraitGalleryPool,
-    ]),
-  );
-  const fallbackImage = merged[0] ?? '';
-
-  return Array.from(
-    { length: 24 },
-    (_, index) => merged[(index + profile.value!.id) % merged.length] ?? fallbackImage,
-  );
-});
-
 const previewGalleryImages = computed(() => fullGalleryImages.value.slice(0, 6));
 
-function syncProfilePosts() {
-  profilePosts.value = baseFeedPosts
-    .filter((post) => post.authorId === profileId.value)
-    .map((post) => ({
-      ...post,
-      media: { ...post.media },
-      comments: post.comments.map((comment) => ({ ...comment })),
-    }));
+async function loadProfileData() {
+  if (Number.isNaN(profileId.value)) {
+    profile.value = null;
+    profilePosts.value = [];
+    fullGalleryImages.value = [];
+    isLoadingProfile.value = false;
+    return;
+  }
+
+  isLoadingProfile.value = true;
+  loadProfileError.value = '';
+
+  try {
+    // Dica para iniciantes: todo fluxo de API desta tela fica centralizado aqui.
+    const loadedProfile = await fetchAdProfileDetailsById(profileId.value);
+    profile.value = loadedProfile;
+
+    if (!loadedProfile) {
+      profilePosts.value = [];
+      fullGalleryImages.value = [];
+      return;
+    }
+
+    const [posts, gallery] = await Promise.all([
+      fetchPostsByAuthorId(loadedProfile.id),
+      fetchProfileGallery(loadedProfile.id),
+    ]);
+
+    profilePosts.value = posts;
+    fullGalleryImages.value = gallery;
+  } catch {
+    loadProfileError.value = 'Nao foi possivel carregar os dados do perfil agora.';
+  } finally {
+    isLoadingProfile.value = false;
+  }
 }
 
-watch(profileId, syncProfilePosts, { immediate: true });
+watch(profileId, () => {
+  void loadProfileData();
+}, { immediate: true });
 
 function guardAction(action: string): boolean {
   if (isAuthenticated.value) {

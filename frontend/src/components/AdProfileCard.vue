@@ -69,7 +69,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import type { AdProfile, AdProfileBadge } from 'src/data/mock-content';
+import type { AdProfile, AdProfileBadge } from 'src/types/content';
 
 const props = defineProps<{
   profile: AdProfile;

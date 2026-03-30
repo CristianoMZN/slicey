@@ -25,13 +25,6 @@
             />
           </div>
 
-          <div class="col-12 col-md-6">
-            <q-input v-model="fullName" filled dense label="Nome completo" :rules="requiredRules" />
-          </div>
-          <div class="col-12 col-md-6">
-            <q-input v-model="displayName" filled dense label="Nome social (opcional)" />
-          </div>
-
           <div class="col-12" v-if="loginType === 'email'">
             <q-input
               v-model="email"
@@ -111,7 +104,7 @@
               :loading="auth.state.isSubmittingAuth"
               :disable="!acceptTerms"
             />
-            <q-btn flat rounded icon="arrow_back" label="Voltar ao feed" :to="{ name: 'feed' }" />
+            <q-btn flat rounded icon="login" label="Já tenho conta" :to="{ name: 'login' }" />
           </div>
         </q-form>
 
@@ -127,7 +120,7 @@
             maxlength="6"
             mask="######"
             label="Codigo de verificacao"
-            hint="Modo simulacao: qualquer codigo com 6 numeros sera aceito."
+            :hint="verificationHint"
           />
 
           <div class="row q-gutter-sm q-mt-md">
@@ -167,6 +160,8 @@ import { computed, onBeforeUnmount, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useAuth } from 'src/composables/useAuth';
+import { requestVerificationCode, verifyRegistrationCode } from 'src/services/registration.service';
+import { useMockApi } from 'src/services/runtime';
 
 const $q = useQuasar();
 const router = useRouter();
@@ -174,8 +169,6 @@ const route = useRoute();
 const auth = useAuth();
 
 const loginType = ref<'email' | 'phone'>('email');
-const fullName = ref('');
-const displayName = ref('');
 const email = ref('');
 const phone = ref('');
 const password = ref('');
@@ -186,12 +179,12 @@ const showPasswordConfirm = ref(false);
 const step = ref<'form' | 'verify'>('form');
 const verificationIdentity = ref('');
 const verificationCode = ref('');
+const verificationRequestId = ref('');
 const resendCountdown = ref(0);
 let resendTimer: ReturnType<typeof setInterval> | null = null;
 
 const RESEND_SECONDS = 30;
 
-const requiredRules = [(value: string) => Boolean(value?.trim()) || 'Campo obrigatorio'];
 const emailRules = [
   (value: string) => Boolean(value?.trim()) || 'Email obrigatorio',
   (value: string) => /\S+@\S+\.\S+/.test(value) || 'Informe um email valido',
@@ -217,6 +210,11 @@ const verificationIdentityLabel = computed(() =>
 );
 const resendLabel = computed(() =>
   resendCountdown.value > 0 ? `Reenviar em ${resendCountdown.value}s` : 'Reenviar codigo',
+);
+const verificationHint = computed(() =>
+  useMockApi
+    ? 'Modo simulacao: qualquer codigo com 6 numeros sera aceito.'
+    : 'Digite o codigo recebido no seu contato.',
 );
 
 function formatPhoneForLabel(rawPhone: string): string {
@@ -254,11 +252,6 @@ function startResendCountdown() {
 }
 
 function validateForm(): boolean {
-  if (!fullName.value.trim()) {
-    $q.notify({ type: 'warning', message: 'Informe seu nome completo.', timeout: 2200 });
-    return false;
-  }
-
   if (loginType.value === 'email' && !/\S+@\S+\.\S+/.test(email.value)) {
     $q.notify({ type: 'warning', message: 'Informe um email valido.', timeout: 2200 });
     return false;
@@ -287,53 +280,66 @@ function validateForm(): boolean {
   return true;
 }
 
-function generateVerificationCode(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-}
-
-async function mockVerifyCode(): Promise<boolean> {
-  await new Promise<void>((resolve) => {
-    setTimeout(() => resolve(), 500);
-  });
-
-  return true;
-}
-
-function sendVerificationCode() {
-  const demoCode = generateVerificationCode();
+async function sendVerificationCode(): Promise<boolean> {
   verificationCode.value = '';
-  startResendCountdown();
 
-  const channel = loginType.value === 'email' ? 'email' : 'celular';
-  $q.notify({
-    type: 'info',
-    message: `Codigo enviado por ${channel}. (demo: ${demoCode})`,
-    timeout: 3500,
-    position: 'top',
-  });
+  try {
+    const payload = {
+      loginType: loginType.value,
+      identity: loginIdentity.value.trim(),
+    };
+
+    const result = await requestVerificationCode(payload);
+
+    verificationRequestId.value = result.requestId;
+    startResendCountdown();
+
+    const channel = loginType.value === 'email' ? 'email' : 'celular';
+    const demoSuffix = result.debugCode ? ` (demo: ${result.debugCode})` : '';
+
+    $q.notify({
+      type: 'info',
+      message: `Codigo enviado por ${channel}.${demoSuffix}`,
+      timeout: 3500,
+      position: 'top',
+    });
+
+    return true;
+  } catch {
+    $q.notify({
+      type: 'negative',
+      message: 'Nao foi possivel enviar o codigo agora. Tente novamente.',
+      timeout: 2200,
+      position: 'top',
+    });
+    return false;
+  }
 }
 
-function submitRegister() {
+async function submitRegister() {
   if (!validateForm()) {
     return;
   }
 
   verificationIdentity.value = loginIdentity.value.trim();
-  step.value = 'verify';
-  sendVerificationCode();
+  const sent = await sendVerificationCode();
+  if (sent) {
+    step.value = 'verify';
+  }
 }
 
-function resendCode() {
+async function resendCode() {
   if (resendCountdown.value > 0) {
     return;
   }
 
-  sendVerificationCode();
+  await sendVerificationCode();
 }
 
 function backToForm() {
   step.value = 'form';
   verificationCode.value = '';
+  verificationRequestId.value = '';
 }
 
 async function confirmVerification() {
@@ -342,13 +348,22 @@ async function confirmVerification() {
     return;
   }
 
-  const isValid = await mockVerifyCode();
+  if (!verificationRequestId.value) {
+    $q.notify({ type: 'warning', message: 'Solicite um novo codigo para continuar.', timeout: 2200 });
+    return;
+  }
+
+  // Dica para iniciantes: a validacao do codigo deve acontecer no backend.
+  const isValid = await verifyRegistrationCode({
+    requestId: verificationRequestId.value,
+    code: verificationCode.value,
+  });
   if (!isValid) {
     $q.notify({ type: 'negative', message: 'Codigo invalido. Tente novamente.', timeout: 2200 });
     return;
   }
 
-  await auth.registerQuick(verificationIdentity.value);
+  await auth.registerQuick(verificationIdentity.value, 'registered');
 
   $q.notify({
     type: 'positive',
@@ -370,7 +385,7 @@ onBeforeUnmount(() => {
 
 <style scoped lang="scss">
 .register-card {
-  max-width: 820px;
+  max-width: 580px;
   margin: 0 auto;
 }
 

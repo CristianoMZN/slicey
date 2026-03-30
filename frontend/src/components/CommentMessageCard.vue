@@ -49,7 +49,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { commentTemperatureLabelMap, type FeedComment } from 'src/data/mock-content';
+import { commentTemperatureLabelMap, type FeedComment } from 'src/types/content';
 import { resolveSuperCommentTemperature } from 'src/types/comments';
 
 const props = defineProps<{

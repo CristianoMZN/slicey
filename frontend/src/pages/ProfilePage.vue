@@ -23,6 +23,53 @@
 
         <div class="col-12 col-lg-8">
           <q-form class="column q-gutter-md" @submit="saveProfile">
+            <!-- Status de conta de criador -->
+            <q-card v-if="auth.state.userType === 'creator'" flat bordered class="q-pa-md creator-approved-card">
+              <div class="row items-center q-gutter-md">
+                <q-icon name="verified" color="primary" size="2.5rem" />
+                <div>
+                  <div class="text-subtitle1 text-weight-bold">Voce agora e um criador!</div>
+                  <div class="text-body2 text-grey-6 q-mt-xs">
+                    Sua conta foi verificada e aprovada. Voce pode publicar conteudo exclusivo e receber pagamentos.
+                  </div>
+                </div>
+              </div>
+            </q-card>
+
+            <q-card v-else-if="auth.state.creatorVerificationStatus === 'pending-review'" flat bordered class="q-pa-md creator-pending-card">
+              <div class="row items-center q-gutter-md">
+                <q-icon name="hourglass_top" color="warning" size="2.5rem" />
+                <div>
+                  <div class="text-subtitle1 text-weight-bold">Conta de criador em analise</div>
+                  <div class="text-body2 text-grey-6 q-mt-xs">
+                    Seus documentos foram recebidos e estao sendo verificados pela nossa equipe. Voce sera notificado quando a aprovacao ocorrer.
+                  </div>
+                </div>
+              </div>
+            </q-card>
+
+            <q-card v-else flat bordered class="q-pa-md creator-invite-card">
+              <div class="text-subtitle1 text-weight-bold q-mb-sm">Quero ser um criador</div>
+              <div class="text-body2 text-grey-6 q-mb-md">
+                Preencha seus dados pessoais abaixo e clique em <strong>Enviar para verificacao KYC</strong>
+                para submeter sua conta para analise. Se aprovado, voce podera publicar conteudo exclusivo e receber pagamentos.
+              </div>
+              <q-btn
+                color="secondary"
+                unelevated
+                rounded
+                icon="star"
+                label="Enviar para verificacao KYC"
+                :loading="auth.state.isSubmittingAuth"
+                :disable="!canApplyForCreator"
+                @click="applyForCreator"
+              />
+              <div v-if="!canApplyForCreator" class="text-caption text-grey-6 q-mt-sm">
+                Preencha nome completo, CPF, data de nascimento e endereco para continuar.
+              </div>
+            </q-card>
+            <!-- /Status de conta de criador -->
+
             <q-card flat bordered class="q-pa-md">
               <div class="text-subtitle1 text-weight-bold q-mb-md">Dados publicos</div>
               <div class="row q-col-gutter-sm">
@@ -167,12 +214,14 @@
 </template>
 
 <script setup lang="ts">
-import { reactive } from 'vue';
+import { computed, reactive } from 'vue';
 import { useQuasar } from 'quasar';
 import UndrawProfileData from 'vue-undraw/UndrawProfileData.vue';
+import { useAuth } from 'src/composables/useAuth';
 import { useUserPreferences } from 'src/composables/useUserPreferences';
 
 const $q = useQuasar();
+const auth = useAuth();
 const { preferences } = useUserPreferences();
 
 const interestedInOptions = [
@@ -210,6 +259,34 @@ const form = reactive({
   oneClick: true,
 });
 
+async function applyForCreator() {
+  try {
+    await auth.submitCreatorApplication({
+      fullName: form.fullName.trim(),
+      cpf: form.cpf.trim(),
+      birthDate: form.birthDate.trim(),
+      address: form.address.trim(),
+    });
+    $q.notify({
+      type: 'positive',
+      message: 'Solicitacao enviada! Sua conta esta em analise.',
+      timeout: 3000,
+      position: 'top',
+    });
+  } catch {
+    $q.notify({
+      type: 'negative',
+      message: 'Nao foi possivel enviar a solicitacao. Tente novamente.',
+      timeout: 2200,
+      position: 'top',
+    });
+  }
+}
+
+const canApplyForCreator = computed(() =>
+  Boolean(form.fullName.trim() && form.cpf.trim() && form.birthDate.trim() && form.address.trim()),
+);
+
 function saveProfile() {
   $q.notify({
     type: 'positive',
@@ -223,6 +300,21 @@ function saveProfile() {
 <style scoped lang="scss">
 .profile-summary {
   background: rgba(255, 255, 255, 0.05);
+}
+
+.creator-approved-card {
+  border-color: rgba(var(--q-primary-rgb, 142, 45, 226), 0.4);
+  background: rgba(var(--q-primary-rgb, 142, 45, 226), 0.06);
+}
+
+.creator-pending-card {
+  border-color: rgba(255, 165, 0, 0.35);
+  background: rgba(255, 165, 0, 0.06);
+}
+
+.creator-invite-card {
+  border-color: rgba(var(--q-secondary-rgb, 221, 36, 118), 0.3);
+  background: rgba(var(--q-secondary-rgb, 221, 36, 118), 0.05);
 }
 
 .payment-banner {

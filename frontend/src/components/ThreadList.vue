@@ -31,7 +31,7 @@
 </template>
 
 <script setup lang="ts">
-import type { ChatThread } from 'src/data/mock-content';
+import type { ChatThread } from 'src/types/content';
 
 defineProps<{
   threads: ChatThread[];

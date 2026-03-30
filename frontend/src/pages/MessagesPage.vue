@@ -14,7 +14,19 @@
         </div>
         <q-separator />
         <div class="col overflow-auto">
+          <div v-if="isLoadingThreads" class="q-pa-md">
+            <q-skeleton type="text" class="q-mb-sm" />
+            <q-skeleton type="text" class="q-mb-sm" />
+            <q-skeleton type="text" />
+          </div>
+          <q-banner v-else-if="loadThreadsError" rounded class="q-ma-sm bg-negative text-white">
+            {{ loadThreadsError }}
+            <template #action>
+              <q-btn flat color="white" label="Tentar de novo" @click="loadThreads" />
+            </template>
+          </q-banner>
           <thread-list
+            v-else
             :threads="filteredThreads"
             :selected-thread-id="selectedThreadId"
             @select-thread="selectThread"
@@ -173,7 +185,15 @@
         </q-card-section>
         <q-card-section class="q-pt-none">
           <q-input v-model="search" outlined dense rounded label="Buscar conversa" class="q-mb-sm" />
+          <div v-if="isLoadingThreads" class="q-py-sm">
+            <q-skeleton type="text" class="q-mb-xs" />
+            <q-skeleton type="text" />
+          </div>
+          <q-banner v-else-if="loadThreadsError" rounded class="bg-negative text-white q-mb-sm">
+            {{ loadThreadsError }}
+          </q-banner>
           <thread-list
+            v-else
             :threads="filteredThreads"
             :selected-thread-id="selectedThreadId"
             @select-thread="handleMobileThreadSelect"
@@ -198,15 +218,16 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useQuasar } from 'quasar';
 import { useRoute, useRouter } from 'vue-router';
 import VoiceRecorder from 'src/components/VoiceRecorder.vue';
 import ChatVoicePlayer from 'src/components/ChatVoicePlayer.vue';
 import ChatVideoPlayer from 'src/components/ChatVideoPlayer.vue';
 import ImageViewerDialog from 'src/components/ImageViewerDialog.vue';
-import { chatThreadsSeed, type ChatMessage, type ChatThread } from 'src/data/mock-content';
+import { fetchChatThreads } from 'src/services/content.service';
 import ThreadList from 'src/components/ThreadList.vue';
+import type { ChatMessage, ChatThread } from 'src/types/content';
 
 const $q = useQuasar();
 const route = useRoute();
@@ -214,9 +235,11 @@ const router = useRouter();
 const isMobile = computed(() => $q.screen.lt.md);
 
 const search = ref('');
-const threads = ref<ChatThread[]>(structuredClone(chatThreadsSeed));
+const threads = ref<ChatThread[]>([]);
 const selectedThreadId = ref<number | null>(null);
 const mobileThreadsOpen = ref(false);
+const isLoadingThreads = ref(true);
+const loadThreadsError = ref('');
 const composerMode = ref<'text' | 'image' | 'video' | 'audio'>('text');
 const draftText = ref('');
 const draftFile = ref<File | null>(null);
@@ -389,18 +412,37 @@ function openImagePreview(src: string) {
   imageViewerOpen.value = true;
 }
 
+function syncThreadByRoute() {
+  const parsedId = Number.parseInt((route.query.thread as string) || '', 10);
+  if (!Number.isNaN(parsedId) && threads.value.some((item) => item.id === parsedId)) {
+    selectThread(parsedId);
+    return;
+  }
+
+  if (!selectedThreadId.value && threads.value.length > 0) {
+    selectThread(threads.value[0]!.id);
+  }
+}
+
+async function loadThreads() {
+  isLoadingThreads.value = true;
+  loadThreadsError.value = '';
+
+  try {
+    // Dica para iniciantes: mantenha a chamada HTTP em services para a pagina ficar simples.
+    threads.value = await fetchChatThreads();
+    syncThreadByRoute();
+  } catch {
+    loadThreadsError.value = 'Nao foi possivel carregar as conversas.';
+  } finally {
+    isLoadingThreads.value = false;
+  }
+}
+
 watch(
   () => route.query.thread,
-  (threadQuery) => {
-    const parsedId = Number.parseInt((threadQuery as string) || '', 10);
-    if (!Number.isNaN(parsedId) && threads.value.some((item) => item.id === parsedId)) {
-      selectThread(parsedId);
-      return;
-    }
-
-    if (!selectedThreadId.value && threads.value.length > 0) {
-      selectThread(threads.value[0]!.id);
-    }
+  () => {
+    syncThreadByRoute();
   },
   { immediate: true },
 );
@@ -416,6 +458,10 @@ watch(selectedThreadId, (id) => {
       thread: id.toString(),
     },
   });
+});
+
+onMounted(() => {
+  void loadThreads();
 });
 </script>
 
