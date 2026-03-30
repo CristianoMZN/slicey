@@ -135,6 +135,42 @@ Notes:
 - Prismabox is a validation library used in code. It is not a separate service to start.
 - If you need to stop Postgres later, run `docker compose stop postgres`.
 
+## Product Roadmap (Future Implementation)
+
+This section records moderation and recommendation decisions for a future phase. Nothing below is implemented yet.
+
+### Moderation Strategy (MVP)
+
+1. User uploads media normally.
+2. Media enters an async moderation queue (Redis-based worker).
+3. A fast moderation pass classifies the content:
+   - Adult/nudity content: allowed, but flagged as sensitive.
+   - Gore/graphic violence: blocked and removed.
+4. User trust score can change exposure policy, but should not bypass moderation safety checks.
+5. A second, deeper moderation pass runs in background for extra risk categories (weapons, drugs, other policy risks).
+6. If deep moderation fails, backend can unpublish/remove content and apply account actions (strike, score reduction, notification).
+
+### Moderation States (Proposed)
+
+- `PENDING_FAST`: waiting for quick moderation.
+- `PENDING_DEEP`: waiting for deep moderation.
+- `APPROVED`: safe to show.
+- `FLAGGED_ADULT`: allowed with sensitive label.
+- `REJECTED`: removed/blocked due to policy violation.
+
+### Recommendation Strategy (MVP)
+
+To keep cost low and implementation simple, recommendation starts with manual tags (no advanced embedding pipeline in MVP):
+
+1. Media receives predefined tags (manual or rule-assisted).
+2. Feed ranking uses user interactions with those tags (likes, watch time, skips, comments).
+3. Recommendation and moderation are separated pipelines, so moderation latency does not depend on recommendation processing.
+
+### Post-MVP Direction
+
+- Add richer automated tagging and semantic similarity later.
+- Evaluate vector embeddings for organic "similar content" discovery after MVP is stable.
+
 ## License
 
 This project is licensed under the MIT License. See the LICENSE file for details.
