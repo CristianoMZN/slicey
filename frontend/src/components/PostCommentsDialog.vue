@@ -22,18 +22,11 @@
       <q-scroll-area class="comments-scroll-area">
         <div class="q-pa-md">
           <q-list separator>
-            <q-item v-for="comment in comments" :key="comment.id" class="q-px-none">
-              <q-item-section avatar top>
-                <q-avatar color="secondary" text-color="white">
-                  {{ comment.author.charAt(0) }}
-                </q-avatar>
-              </q-item-section>
-              <q-item-section>
-                <q-item-label class="text-weight-bold">{{ comment.author }}</q-item-label>
-                <q-item-label caption class="text-grey-6">{{ comment.timeAgo }}</q-item-label>
-                <q-item-label class="q-mt-xs comment-body">{{ comment.body }}</q-item-label>
-              </q-item-section>
-            </q-item>
+            <comment-message-card
+              v-for="comment in comments"
+              :key="comment.id"
+              :comment="comment"
+            />
           </q-list>
         </div>
       </q-scroll-area>
@@ -52,8 +45,10 @@
 </template>
 
 <script setup lang="ts">
+import CommentMessageCard from 'src/components/CommentMessageCard.vue';
 import PostCommentComposer from 'src/components/PostCommentComposer.vue';
 import type { FeedComment } from 'src/data/mock-content';
+import type { SubmitCommentPayload } from 'src/types/comments';
 
 defineProps<{
   modelValue: boolean;
@@ -64,7 +59,7 @@ defineProps<{
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean];
-  'submit-comment': [message: string];
+  'submit-comment': [payload: SubmitCommentPayload];
   'request-auth': [];
 }>();
 </script>
@@ -76,11 +71,6 @@ const emit = defineEmits<{
 
 .comments-scroll-area {
   height: calc(100vh - 190px);
-}
-
-.comment-body {
-  white-space: pre-wrap;
-  line-height: 1.55;
 }
 
 :global(body.body--light) .comments-dialog-card {
