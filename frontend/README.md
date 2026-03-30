@@ -39,6 +39,67 @@ npm run dev:pwa
 
 O frontend agora esta preparado para migrar do mock para backend real sem trocar codigo das telas.
 
+## Push Notifications (fluxo minimo - PWA)
+
+Esta secao descreve o minimo necessario no frontend para receber push no navegador/PWA.
+
+### 1. Compatibilidade rapida
+
+- Android + Chrome/Edge: funciona bem.
+- Desktop + Chrome/Edge/Firefox: funciona bem.
+- iOS/iPadOS: funciona em PWA instalada na tela inicial (Add to Home Screen).
+
+### 2. Configuracao base
+
+1. Rode o app em HTTPS (ou localhost em desenvolvimento).
+2. Garanta que o Service Worker do PWA esteja ativo.
+3. Defina a chave publica VAPID no frontend (vinda do backend).
+
+Exemplo de variavel:
+
+```env
+VITE_PUSH_PUBLIC_VAPID_KEY=coloque_a_chave_publica_vapid_aqui
+```
+
+### 3. Fluxo minimo no login
+
+1. Frontend cria `anonymousSessionId` local ao abrir a app.
+2. Usuario autentica normalmente.
+3. Frontend pede permissao com Notification.requestPermission().
+4. Se permitido, frontend cria/obtem subscription via PushManager.
+5. Frontend envia a subscription para `POST /auth/push/subscriptions`.
+6. Se houve login/registro, frontend chama `POST /auth/push/bind-anonymous` para migrar contexto anonimo para usuario logado.
+
+Payload minimo sugerido para enviar ao backend:
+
+```json
+{
+	"endpoint": "https://...",
+	"expirationTime": null,
+	"keys": {
+		"p256dh": "...",
+		"auth": "..."
+	},
+	"device": "web-pwa",
+	"anonymousSessionId": "uuid-opcional"
+}
+```
+
+### 4. Fluxo minimo no logout
+
+1. Opcional: chamar rota para desativar o endpoint atual.
+2. Opcional: unsubscribe local (quando fizer sentido para sua regra de produto).
+
+### 5. Teste manual rapido
+
+1. Login em um navegador suportado.
+2. Aceite permissao de notificacao.
+3. Verifique no backend se a subscription foi salva para usuario logado ou sessao anonima.
+4. Dispare um push de teste pelo backend em `POST /auth/push/test`.
+5. Confirme recebimento em foreground/background.
+
+Observacao: o frontend sozinho nao envia push para o provedor. Ele registra a subscription; o disparo real acontece no backend.
+
 ### 1. Configure variaveis de ambiente
 
 1. Copie `frontend/.env.example` para `.env`.

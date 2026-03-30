@@ -7,11 +7,34 @@ type RegisterBody = {
     email: string;
     password: string;
     nickname: string;
+    anonymousSessionId?: string;
 };
 
 type LoginBody = {
     email: string;
     password: string;
+    anonymousSessionId?: string;
+};
+
+const bindAnonymousPushSubscriptions = async (userId: number, anonymousSessionId?: string) => {
+    const sessionId = anonymousSessionId?.trim();
+
+    if (!sessionId) {
+        return;
+    }
+
+    await prisma.pushSubscription.updateMany({
+        where: {
+            anonymousSessionId: sessionId,
+            userId: null
+        },
+        data: {
+            userId,
+            anonymousSessionId: null,
+            isActive: true,
+            lastUsedAt: new Date()
+        }
+    });
 };
 
 export const register = async ({ body, set }: { body: RegisterBody; set: { status?: number } }) => {
@@ -35,6 +58,8 @@ export const register = async ({ body, set }: { body: RegisterBody; set: { statu
             nickname: body.nickname
         }
     });
+
+    await bindAnonymousPushSubscriptions(user.id, body.anonymousSessionId);
 
     return {
         user: {
@@ -71,6 +96,8 @@ export const login = async ({ body, set }: { body: LoginBody; set: { status?: nu
             token
         }
     });
+
+    await bindAnonymousPushSubscriptions(user.id, body.anonymousSessionId);
 
     return {
         token,

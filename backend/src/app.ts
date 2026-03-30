@@ -7,6 +7,8 @@ import { sanitizePlugin } from './plugins/sanitize';
 import { profileRoutes } from './modules/profile/profile.routes';
 import { postsRoutes } from './modules/posts/posts.routes';
 import { mediaRoutes } from './modules/media/media.routes';
+import { pushRoutes } from './modules/push/push.routes';
+import { geoContextPlugin } from './plugins/geo-context';
 
 const app = new Elysia()
   .get('/', () => ({
@@ -19,8 +21,10 @@ const app = new Elysia()
   )
   .use(prismaPlugin)
   .use(sanitizePlugin)
+  .use(geoContextPlugin)
   .use(authGuardPlugin)
   .use(authRoutes)
+  .use(pushRoutes)
   .use(profileRoutes)
   .use(postsRoutes)
   .use(mediaRoutes)

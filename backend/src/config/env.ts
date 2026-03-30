@@ -13,5 +13,8 @@ export const ENV = {
   STORAGE_NAME: process.env.STORAGE_NAME || '',
   STORAGE_REGION: process.env.STORAGE_REGION || 'us-east-1',
   STORAGE_ACCESS_KEY: process.env.STORAGE_ACCESS_KEY || '',
-  STORAGE_SECRET_KEY: process.env.STORAGE_SECRET_KEY || ''
+  STORAGE_SECRET_KEY: process.env.STORAGE_SECRET_KEY || '',
+  PUSH_VAPID_PUBLIC_KEY: process.env.PUSH_VAPID_PUBLIC_KEY || '',
+  PUSH_VAPID_PRIVATE_KEY: process.env.PUSH_VAPID_PRIVATE_KEY || '',
+  PUSH_VAPID_SUBJECT: process.env.PUSH_VAPID_SUBJECT || ''
 };

@@ -13,7 +13,8 @@ export const UserPublicSchema = t.Object({
 export const RegisterBodySchema = t.Object({
   email: t.String({ format: 'email' }),
   password: t.String({ minLength: 6 }),
-  nickname: t.String({ minLength: 3 })
+  nickname: t.String({ minLength: 3 }),
+  anonymousSessionId: t.Optional(t.String({ minLength: 8 }))
 });
 
 export const RegisterResponseSchema = t.Object({
@@ -22,7 +23,8 @@ export const RegisterResponseSchema = t.Object({
 
 export const LoginBodySchema = t.Object({
   email: t.String({ format: 'email' }),
-  password: t.String({ minLength: 6 })
+  password: t.String({ minLength: 6 }),
+  anonymousSessionId: t.Optional(t.String({ minLength: 8 }))
 });
 
 export const LoginResponseSchema = t.Object({

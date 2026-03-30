@@ -13,7 +13,17 @@ export const CreatePostBodySchema = t.Object({
     mediaUrl: t.Optional(t.String()),
     duration: t.Optional(t.Number({ minimum: 1 })),
     location: t.Optional(t.String()),
+    latitude: t.Optional(t.Number({ minimum: -90, maximum: 90 })),
+    longitude: t.Optional(t.Number({ minimum: -180, maximum: 180 })),
     allowComments: t.Optional(t.Boolean())
+});
+
+export const FeedQuerySchema = t.Object({
+    page: t.Optional(t.Numeric({ minimum: 0 })),
+    limit: t.Optional(t.Numeric({ minimum: 1, maximum: 100 })),
+    radiusKm: t.Optional(t.Numeric({ minimum: 1, maximum: 500 })),
+    geoLat: t.Optional(t.Number({ minimum: -90, maximum: 90 })),
+    geoLng: t.Optional(t.Number({ minimum: -180, maximum: 180 }))
 });
 
 export const PostIdParamSchema = t.Object({
@@ -33,6 +43,8 @@ export const FeedPostSchema = t.Object({
     mediaUrl: t.Nullable(t.String()),
     duration: t.Nullable(t.Number()),
     location: t.Nullable(t.String()),
+    latitude: t.Nullable(t.Number()),
+    longitude: t.Nullable(t.Number()),
     allowComments: t.Boolean(),
     createdAt: t.String({ format: 'date-time' }),
     author: t.Object({

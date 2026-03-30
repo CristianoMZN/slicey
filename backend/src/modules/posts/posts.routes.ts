@@ -2,6 +2,7 @@ import { Elysia, t } from 'elysia';
 import { createPost, getFeed, likePost } from './posts.controller';
 import {
     CreatePostBodySchema,
+    FeedQuerySchema,
     FeedPostSchema,
     LikeBodySchema,
     LikeResponseSchema,
@@ -10,6 +11,7 @@ import {
 
 export const postsRoutes = new Elysia({ prefix: '/posts' })
     .get('/', getFeed, {
+        query: FeedQuerySchema,
         response: {
             200: t.Array(FeedPostSchema)
         },
@@ -29,6 +31,8 @@ export const postsRoutes = new Elysia({ prefix: '/posts' })
                 mediaUrl: t.Nullable(t.String()),
                 duration: t.Nullable(t.Number()),
                 location: t.Nullable(t.String()),
+                latitude: t.Nullable(t.Number()),
+                longitude: t.Nullable(t.Number()),
                 allowComments: t.Boolean(),
                 createdAt: t.String({ format: 'date-time' })
             }),

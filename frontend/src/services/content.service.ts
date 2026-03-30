@@ -7,6 +7,7 @@ import {
   frameVideos,
   portraitGalleryPool,
 } from 'src/data/mock-content';
+import { ensureGeolocationForApi } from 'src/services/geolocation.service';
 import { useMockApi, wait } from 'src/services/runtime';
 import type { AdProfile, AdProfileDetails, ChatThread, FeedPost, FrameVideo } from 'src/types/content';
 
@@ -43,6 +44,8 @@ export async function fetchFeedPostsPage(page: number): Promise<FeedPost[]> {
     return createMockFeedBatch(page);
   }
 
+  await ensureGeolocationForApi();
+
   // TODO(back-end): ajustar endpoint e mapear DTO real para FeedPost.
   const { data } = await api.get<FeedPost[]>('/feed', {
     params: {
@@ -59,6 +62,8 @@ export async function fetchAdProfiles(): Promise<AdProfile[]> {
     return adProfiles.map((item) => ({ ...item }));
   }
 
+  await ensureGeolocationForApi();
+
   // TODO(back-end): trocar para endpoint real de anuncios/perfis.
   const { data } = await api.get<AdProfile[]>('/ads/profiles');
   return data;
@@ -71,6 +76,8 @@ export async function fetchAdProfileDetailsById(id: number): Promise<AdProfileDe
     return found ? { ...found, publicData: { ...found.publicData } } : null;
   }
 
+  await ensureGeolocationForApi();
+
   // TODO(back-end): endpoint de detalhe com o id do perfil.
   const { data } = await api.get<AdProfileDetails>(`/ads/profiles/${id}`);
   return data;
@@ -81,6 +88,8 @@ export async function fetchPostsByAuthorId(authorId: number): Promise<FeedPost[]
     await wait(220);
     return baseFeedPosts.filter((post) => post.authorId === authorId).map(cloneFeedPost);
   }
+
+  await ensureGeolocationForApi();
 
   // TODO(back-end): endpoint de posts por autor/perfil.
   const { data } = await api.get<FeedPost[]>(`/profiles/${authorId}/posts`);
@@ -117,6 +126,8 @@ export async function fetchChatThreads(): Promise<ChatThread[]> {
     }));
   }
 
+  await ensureGeolocationForApi();
+
   // TODO(back-end): endpoint de conversas do usuario autenticado.
   const { data } = await api.get<ChatThread[]>('/chat/threads');
   return data;
@@ -130,6 +141,8 @@ export async function fetchFrameVideos(): Promise<FrameVideo[]> {
       comments: frame.comments.map((comment) => ({ ...comment })),
     }));
   }
+
+  await ensureGeolocationForApi();
 
   // TODO(back-end): endpoint de videos curtos / frames.
   const { data } = await api.get<FrameVideo[]>('/frames');

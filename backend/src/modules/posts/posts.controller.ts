@@ -12,6 +12,8 @@ type CreatePostBody = {
     mediaUrl?: string;
     duration?: number;
     location?: string;
+    latitude?: number;
+    longitude?: number;
     allowComments?: boolean;
 };
 
@@ -19,6 +21,49 @@ type LikeBody = {
     type?: string;
     geoLocation?: string;
     userId?: number;
+};
+
+type FeedQuery = {
+    page?: number;
+    limit?: number;
+    radiusKm?: number;
+    geoLat?: number;
+    geoLng?: number;
+};
+
+type GeoContext = {
+    latitude: number;
+    longitude: number;
+    radiusKm: number;
+} | null;
+
+const toRadians = (value: number) => (value * Math.PI) / 180;
+
+const haversineDistanceKm = (lat1: number, lng1: number, lat2: number, lng2: number) => {
+    const earthRadiusKm = 6371;
+    const dLat = toRadians(lat2 - lat1);
+    const dLng = toRadians(lng2 - lng1);
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return earthRadiusKm * c;
+};
+
+const resolveGeoContext = (query: FeedQuery, geoContext: GeoContext) => {
+    const queryLat = Number(query.geoLat);
+    const queryLng = Number(query.geoLng);
+    const queryRadius = Number(query.radiusKm);
+
+    if (Number.isFinite(queryLat) && Number.isFinite(queryLng)) {
+        return {
+            latitude: queryLat,
+            longitude: queryLng,
+            radiusKm: Number.isFinite(queryRadius) ? Math.min(500, Math.max(1, queryRadius)) : 30
+        };
+    }
+
+    return geoContext;
 };
 
 export const createPost = async ({
@@ -43,6 +88,8 @@ export const createPost = async ({
             mediaUrl: body.mediaUrl,
             duration: body.duration,
             location: body.location,
+            latitude: body.latitude,
+            longitude: body.longitude,
             allowComments: body.allowComments ?? true
         }
     });
@@ -54,9 +101,21 @@ export const createPost = async ({
     };
 };
 
-export const getFeed = async () => {
-    const posts = await prisma.post.findMany({
+export const getFeed = async ({
+    query,
+    geoContext
+}: {
+    query: FeedQuery;
+    geoContext: GeoContext;
+}) => {
+    const page = Number.isFinite(Number(query.page)) ? Math.max(0, Number(query.page)) : 0;
+    const limit = Number.isFinite(Number(query.limit)) ? Math.min(100, Math.max(1, Number(query.limit))) : 20;
+    const activeGeoContext = resolveGeoContext(query, geoContext);
+
+    const basePosts = await prisma.post.findMany({
         orderBy: { createdAt: 'desc' },
+        skip: page * limit,
+        take: limit,
         include: {
             author: {
                 select: {
@@ -87,6 +146,23 @@ export const getFeed = async () => {
         }
     });
 
+    const posts = activeGeoContext
+        ? basePosts.filter(post => {
+              if (!Number.isFinite(post.latitude) || !Number.isFinite(post.longitude)) {
+                  return false;
+              }
+
+              const distanceKm = haversineDistanceKm(
+                  activeGeoContext.latitude,
+                  activeGeoContext.longitude,
+                  post.latitude as number,
+                  post.longitude as number
+              );
+
+              return distanceKm <= activeGeoContext.radiusKm;
+          })
+        : basePosts;
+
     return Promise.all(
         posts.map(async post => {
             const authorProfile = post.author.profile?.isPublic
@@ -104,6 +180,8 @@ export const getFeed = async () => {
                 mediaUrl: await storageService.signMediaUrl(post.mediaUrl),
                 duration: post.duration,
                 location: post.location,
+                latitude: post.latitude,
+                longitude: post.longitude,
                 allowComments: post.allowComments,
                 createdAt: post.createdAt.toISOString(),
                 author: {

@@ -37,6 +37,7 @@ model User {
   sessions  Session[]
   comments         Comment[]
   interactions     Interaction[]
+  pushSubscriptions PushSubscription[]
   sentMessages     DirectMessage[] @relation("SentMessages")
   receivedMessages DirectMessage[] @relation("ReceivedMessages")
 
@@ -73,10 +74,14 @@ model Post {
   mediaUrl      String?
   duration      Int?
   location      String?
+  latitude      Float?
+  longitude     Float?
   allowComments Boolean   @default(true)
   comments      Comment[]
   interactions  Interaction[]
   createdAt     DateTime  @default(now())
+
+  @@index([latitude, longitude])
 }
 
 model Interaction {
@@ -147,4 +152,24 @@ model GeoLocation {
   createdAt DateTime @default(now())
 
   place     Place    @relation(fields: [placeId], references: [id])
+}
+
+model PushSubscription {
+  id                 Int      @id @default(autoincrement())
+  userId             Int?
+  anonymousSessionId String?
+  endpoint           String   @unique
+  p256dh             String
+  auth               String
+  expirationTime     BigInt?
+  device             String?
+  isActive           Boolean  @default(true)
+  lastUsedAt         DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isActive])
+  @@index([anonymousSessionId, isActive])
 }

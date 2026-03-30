@@ -1,6 +1,11 @@
 import { computed, reactive } from 'vue';
 import { api } from 'src/boot/axios';
 import { useMockApi, wait } from 'src/services/runtime';
+import {
+  handleAuthPushContextChange,
+  handleGuestPushContextChange,
+  registerPushForCurrentContext,
+} from 'src/services/push.service';
 
 const AUTH_TOKEN_KEY = 'jobbie.auth.token';
 const AUTH_EMAIL_KEY = 'jobbie.auth.email';
@@ -56,6 +61,8 @@ async function registerQuick(identity?: string, userType: Exclude<UserType, 'ano
   state.isSubmittingAuth = true;
 
   try {
+    await registerPushForCurrentContext({ requestPermission: true });
+
     if (useMockApi) {
       await wait(850);
 
@@ -83,6 +90,7 @@ async function registerQuick(identity?: string, userType: Exclude<UserType, 'ano
 
     state.authDialogOpen = false;
     persistSession();
+    await handleAuthPushContextChange();
   } finally {
     state.isSubmittingAuth = false;
   }
@@ -91,6 +99,8 @@ async function registerQuick(identity?: string, userType: Exclude<UserType, 'ano
 async function login(identity: string, _password: string): Promise<boolean> {
   state.isSubmittingAuth = true;
   try {
+    await registerPushForCurrentContext({ requestPermission: true });
+
     if (useMockApi) {
       await wait(650);
       state.token = 'demo-auth-token';
@@ -98,6 +108,7 @@ async function login(identity: string, _password: string): Promise<boolean> {
       state.userType = 'registered';
       state.creatorVerificationStatus = 'not-applicable';
       persistSession();
+      await handleAuthPushContextChange();
       return true;
     }
 
@@ -114,6 +125,7 @@ async function login(identity: string, _password: string): Promise<boolean> {
     state.userType = data.userType;
     state.creatorVerificationStatus = data.creatorVerificationStatus ?? 'not-applicable';
     persistSession();
+    await handleAuthPushContextChange();
     return true;
   } catch {
     return false;
@@ -152,6 +164,7 @@ function logout() {
   state.userType = 'anonymous';
   state.creatorVerificationStatus = 'not-applicable';
   persistSession();
+  void handleGuestPushContextChange();
 }
 
 function requestAuth(action: string) {

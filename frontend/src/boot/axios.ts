@@ -1,5 +1,6 @@
 import { defineBoot } from '#q-app/wrappers';
 import axios, { type AxiosInstance } from 'axios';
+import { getCachedGeolocation } from 'src/services/geolocation.service';
 
 const AUTH_TOKEN_KEY = 'jobbie.auth.token';
 const apiBaseURL = import.meta.env.VITE_API_BASE_URL?.trim() || 'http://localhost:3000';
@@ -27,6 +28,17 @@ api.interceptors.request.use((config) => {
   const token = window.localStorage.getItem(AUTH_TOKEN_KEY);
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  const geo = getCachedGeolocation();
+  if (geo) {
+    config.headers['x-geo-latitude'] = String(geo.latitude);
+    config.headers['x-geo-longitude'] = String(geo.longitude);
+    config.headers['x-geo-timestamp'] = String(geo.timestamp);
+
+    if (typeof geo.accuracy === 'number' && Number.isFinite(geo.accuracy)) {
+      config.headers['x-geo-accuracy'] = String(geo.accuracy);
+    }
   }
 
   return config;
